@@ -153,6 +153,11 @@ Use `pnpm db:seed --reset` to replace the demo data in an existing database.
 - **Integration keys** (Google Maps, WhatsApp, Resend, Meta and TikTok lead forms, Google
   Calendar, the AI provider) are not environment variables. Admins enter them in
   Settings → Integrations, and they are stored encrypted (AES-256-GCM) in the database.
+- **AI providers**: Groq, Google Gemini, xAI Grok or Anthropic Claude, chosen in Settings →
+  Integrations → AI provider, with an optional backup provider that answers when the main one
+  fails. A key saved there wins; without one, the provider's environment variable is used
+  (`GROQ_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `ANTHROPIC_API_KEY`), which suits local
+  development. WhatsApp voice notes are transcribed with Groq's Whisper, or with Gemini.
 
 ## Using Propel from Claude (MCP)
 
@@ -202,7 +207,8 @@ users, bulk exports and publishing are not available to the AI at all.
 | `pnpm db:reset --yes`                                    | Drop everything and re-apply migrations (refuses in production) |
 | `pnpm admin:create --email … [--name …]`                 | Create or promote an admin                                      |
 | `pnpm dev:cron`                                          | Call the cron endpoint every minute (stands in for the Worker)  |
-| `pnpm ai:eval`                                           | Run the AI eval set (test provider unless a key is given)       |
+| `pnpm ai:eval`                                           | Run the AI eval set (`AI_EVAL_PROVIDER=groq` etc. for a model)  |
+| `pnpm demo:reset [--preset=…]`                           | Reseed the public demo (`DEMO_MODE=true`, `DEMO_PASSWORD`)      |
 | `pnpm ai:backfill` / `pnpm ai:prompts`                   | Rebuild the search index / bundle the prompt files              |
 | `pnpm lint` / `pnpm typecheck` / `pnpm format:check`     | Quality checks                                                  |
 | `pnpm test:unit` / `pnpm test:integration` / `pnpm test` | Vitest (integration tests use an in-memory database)            |
@@ -240,6 +246,18 @@ only allows in Developer Mode.
    `STAGING_DATABASE_URL` and `HYPERDRIVE_ID_STAGING`, and the variables `STAGING_APP_URL`,
    `TURNSTILE_SITE_KEY` and `DEPLOY_STAGING=true`. Every push to `main` then migrates the staging
    database and deploys once all checks pass.
+5. Create the first admin against the deployed database:
+   `DATABASE_URL=<neon url> pnpm admin:create --email you@agency.com`, then sign in at
+   `/admin`, set up two-step verification and fill in Settings (general, market, contact,
+   integrations). Optionally load a demo with `pnpm db:seed --preset=haven-dune`.
+6. AI: pick the provider and backup in Settings → Integrations and paste their keys there, or
+   set them as Worker secrets (`wrangler secret put GROQ_API_KEY --env staging`). The search
+   index uses Workers AI (the `AI` binding), chosen in the same screen.
+7. Public demo only: set `DEMO_MODE=true` and `DEMO_PASSWORD` on the Worker, and the secrets
+   listed at the top of [`.github/workflows/demo-reset.yml`](.github/workflows/demo-reset.yml)
+   (the demo database, an R2 API token for the media bucket, the app URL and its secrets).
+   The workflow then reseeds the demo every night; "Switch demo market" on the System page
+   picks the preset for the next run.
 
 ## Architecture
 
