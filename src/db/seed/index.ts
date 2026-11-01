@@ -2,8 +2,7 @@ import "../../../scripts/_env";
 import { parseArgs } from "node:util";
 import { backfillEmbeddings } from "@/features/ai/embeddings";
 import { closeDb, getDb } from "../client";
-import { havenDune } from "./presets/haven-dune";
-import { usDemo } from "./presets/us-demo";
+import { demoPresets } from "./presets";
 import { seedPreset } from "./run";
 import type { SeedPreset } from "./types";
 
@@ -12,7 +11,7 @@ import type { SeedPreset } from "./types";
  * once. Switching market is a reseed with the other preset: only settings and data change.
  * --reset replaces the demo data (listings, projects, master data, files) in this database.
  */
-const presets: Record<string, SeedPreset> = { "haven-dune": havenDune, "us-demo": usDemo };
+const presets: Record<string, SeedPreset> = demoPresets;
 
 const { values } = parseArgs({
   options: {

@@ -1,4 +1,7 @@
 import { PageHeader } from "@/components/admin/page-header";
+import { DemoPanel } from "@/components/admin/system/demo-panel";
+import { canResetInPlace } from "@/features/demo/reset";
+import { env } from "@/lib/env";
 import { SystemOverview } from "@/components/admin/settings/system-overview";
 import { getDb } from "@/db/client";
 import { loadSettings } from "@/features/settings/queries";
@@ -35,6 +38,7 @@ export default async function SystemPage(props: PageProps<"/admin/settings/syste
     loadSettings("ai", db),
     aiSpendThisMonthCents(),
   ]);
+  const demo = await loadSettings("demo", db);
   return (
     <>
       <PageHeader
@@ -59,6 +63,15 @@ export default async function SystemPage(props: PageProps<"/admin/settings/syste
         ]}
         readOnly={user.readOnly}
       />
+      {env().DEMO_MODE && (
+        <DemoPanel
+          preset={demo.preset}
+          requested={demo.requestedPreset}
+          lastResetAt={demo.lastResetAt}
+          inPlace={canResetInPlace()}
+          readOnly={user.readOnly}
+        />
+      )}
     </>
   );
 }

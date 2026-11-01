@@ -15,6 +15,7 @@ import { dailyListingMaintenance } from "@/features/properties/maintenance";
 import { CRAWL_JOB } from "@/features/seo/crawl-job";
 import { pruneNotFound } from "@/features/seo/not-found-log";
 import { queueDailySummary } from "@/features/reports/daily";
+import { queueNightlyDemoReset } from "@/features/demo/reset";
 import { queueWeeklyReport } from "@/features/reports/weekly";
 import { remindExchangeRates } from "@/features/system/alerts";
 import { runRetention } from "@/features/system/retention";
@@ -152,6 +153,14 @@ export const cronTasks: CronTask[] = [
   },
   // Daily 02:00-03:30: clean-ups and repairs.
   { name: "rate-limits.purge", schedule: "daily at 02:00", due: at(2), run: () => purgeExpired() },
+  // 16 §3: the public demo goes back to the seed every night (Node hosts; on Cloudflare the
+  // GitHub Action does it). Nothing happens unless DEMO_MODE=true.
+  {
+    name: "demo.reset",
+    schedule: "daily at 02:30 (demo builds only)",
+    due: at(2, 30),
+    run: async () => queueNightlyDemoReset(await getDb()),
+  },
   // 04 §11, 14 §3: old guest chats, lost leads past their months, visitor events after 180 days.
   {
     name: "data-retention",

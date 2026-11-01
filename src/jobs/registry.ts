@@ -18,6 +18,7 @@ import { viewingNotifyJob } from "@/features/viewings/notify";
 import { seoCrawlJob } from "@/features/seo/crawl-job";
 import { roiReportJob } from "@/features/tools/roi-report";
 import { dailySummaryJob } from "@/features/reports/daily";
+import { demoResetJob } from "@/features/demo/reset";
 import { weeklyReportJob } from "@/features/reports/weekly";
 import { brochureRenderJob } from "@/features/brochure/jobs";
 import { ownerRequestNotifyJob } from "@/features/valuation/notify";
@@ -43,6 +44,7 @@ const jobs: JobDefinition[] = [
   roiReportJob as JobDefinition,
   weeklyReportJob as JobDefinition,
   dailySummaryJob as JobDefinition,
+  demoResetJob as JobDefinition,
   brochureRenderJob as JobDefinition,
   ownerRequestNotifyJob as JobDefinition,
   embedJob as JobDefinition,

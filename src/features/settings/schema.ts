@@ -514,14 +514,14 @@ export const integrationsSchema = z.object({
   ai: z
     .object({
       enabled: z.boolean(),
-      provider: z.enum(["xai", "gemini", "anthropic", "mock"]),
+      provider: z.enum(["xai", "groq", "gemini", "anthropic", "mock"]),
       chatModel: z.string().max(80),
       fastModel: z.string().max(80),
       /**
        * A second provider asked when the first fails (down, overloaded, out of credit), with
        * its own key (`ai_fallback_api_key`) and models for the same two tiers.
        */
-      fallbackProvider: z.enum(["none", "xai", "gemini", "anthropic"]).default("none"),
+      fallbackProvider: z.enum(["none", "xai", "groq", "gemini", "anthropic"]).default("none"),
       fallbackChatModel: z.string().trim().max(80).default(""),
       fallbackFastModel: z.string().trim().max(80).default(""),
       gatewayAccountId: z.string().max(80),
@@ -766,6 +766,17 @@ export const websiteSchema = z.object({
   }),
 });
 
+/* Demo (16 §2-3): not an admin tab; the seed and "Switch demo market" write it. ---------- */
+const demoPreset = z.enum(["haven-dune", "us-demo"]).nullable();
+export const demoSchema = z.object({
+  /** The preset the last seed loaded. */
+  preset: demoPreset.default(null),
+  /** "Switch demo market" on Cloudflare: the next reset (tonight) loads this one. */
+  requestedPreset: demoPreset.default(null),
+  requestedAt: z.iso.datetime().nullable().default(null),
+  lastResetAt: z.iso.datetime().nullable().default(null),
+});
+
 export const settingsSchemas = {
   general: generalSchema,
   branding: brandingSchema,
@@ -780,6 +791,7 @@ export const settingsSchemas = {
   legal: legalSchema,
   security: securitySchema,
   website: websiteSchema,
+  demo: demoSchema,
 } satisfies Record<SettingGroup, z.ZodObject>;
 
 export type SettingsSchemas = typeof settingsSchemas;
