@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { Db } from "@/db/client";
-import { isDemoPresetKey, otherPreset, type DemoPresetKey } from "@/db/seed/presets";
+import { isDemoPresetKey, otherPreset, type DemoPresetKey } from "@/db/seed/presets/keys";
 import { patchSettings } from "@/features/settings/mutations";
 import { loadSettings } from "@/features/settings/queries";
 import { enqueue } from "@/jobs/enqueue";
