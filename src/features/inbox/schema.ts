@@ -25,6 +25,15 @@ export const conversationStatusSchema = z.object({
   action: z.enum(["take_over", "hand_back", "close", "reopen", "mark_read"]),
 });
 
+/** 10 §2: flag an assistant answer as bad (with what was wrong), or take the flag back. */
+export const answerFlagSchema = z
+  .object({
+    messageId: z.uuid(),
+    flagged: z.boolean(),
+    note: z.string().trim().max(500).nullable().default(null),
+  })
+  .strict();
+
 export const approvalDecisionSchema = z
   .object({
     id: z.uuid(),

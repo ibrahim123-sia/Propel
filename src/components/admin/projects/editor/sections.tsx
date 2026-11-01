@@ -18,6 +18,7 @@ import { DateField, Segmented } from "@/components/admin/properties/editor/secti
 import { StatusPill } from "@/components/admin/properties/status-pill";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { SeoFields } from "@/components/admin/seo-fields";
+import { aiSuggestSeo } from "@/features/ai/helper-actions";
 import { PinPicker } from "@/components/maps/pin-picker";
 import { AdminField } from "@/components/admin/fields";
 import { Button } from "@/components/ui/button";
@@ -486,7 +487,15 @@ export function PlanSection({ data, set, errorFor, options, market }: ProjectSec
 
 /* SEO ---------------------------------------------------------------------- */
 
-export function SeoSection({ data, set, errorFor, market, options, media }: ProjectSectionProps) {
+export function SeoSection({
+  data,
+  set,
+  errorFor,
+  market,
+  options,
+  media,
+  aiHelpers,
+}: ProjectSectionProps) {
   const plain = richTextToPlain(data.description).replace(/\s+/g, " ");
   const pageTitle = market.titlePattern
     ? projectSeoTitle(market.titlePattern, {
@@ -517,6 +526,16 @@ export function SeoSection({ data, set, errorFor, market, options, media }: Proj
         siteName={market.siteName}
         errorFor={errorFor}
         shareImageUrl={coverUrl ? mediaVariant(coverUrl, 640) : null}
+        aiSuggest={
+          aiHelpers
+            ? () =>
+                aiSuggestSeo({
+                  kind: "off-plan project",
+                  title: pageTitle,
+                  text: plain.slice(0, 20_000),
+                })
+            : undefined
+        }
         checklist={{
           h1: data.name.trim() !== "",
           imagesWithoutAlt: photos.filter((m) => !m.alt && !media[m.mediaId]?.alt).length,

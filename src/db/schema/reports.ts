@@ -1,10 +1,10 @@
 import { date, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { agencyColumn, idColumn } from "./_common";
 
-export const reportDeliveryKinds = ["weekly"] as const;
+export const reportDeliveryKinds = ["weekly", "daily"] as const;
 
 /**
- * Scheduled report emails that went out (09 §7 "schedule a weekly email report"). One row per
+ * Scheduled report emails that went out (09 §7 weekly report, 13 §3 daily summary). One row per
  * agency, kind and period: the unique index is what makes the weekly email go out once per
  * week, even when the cron fires twice or a retried job runs again.
  */

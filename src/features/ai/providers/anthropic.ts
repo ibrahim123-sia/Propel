@@ -10,6 +10,7 @@ import {
   type AiStreamEvent,
   type AiUsageCount,
 } from "../types";
+import { gatewayBase, parseToolInput, postWithRetries } from "./http";
 import { parseSse } from "./sse";
 
 /**
@@ -37,12 +38,8 @@ const FALLBACK_BETA = "server-side-fallback-2026-07-01";
  */
 const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"]);
 
-const RETRY_STATUSES = new Set([408, 409, 429, 500, 502, 503, 504, 529]);
-
 export function anthropicBaseUrl(gateway: AnthropicConfig["gateway"]): string {
-  return gateway?.accountId && gateway.name
-    ? `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(gateway.accountId)}/${encodeURIComponent(gateway.name)}/anthropic`
-    : "https://api.anthropic.com";
+  return gatewayBase(gateway, "anthropic") ?? "https://api.anthropic.com";
 }
 
 type WireBlock = Record<string, unknown> & { type: string };
@@ -127,8 +124,6 @@ function usageFrom(u: WireUsage | undefined, base: AiUsageCount = emptyUsage()):
   };
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 export class AnthropicProvider implements AiProvider {
   readonly name = "anthropic" as const;
   private readonly fetchImpl: typeof fetch;
@@ -149,46 +144,16 @@ export class AnthropicProvider implements AiProvider {
     return h;
   }
 
-  /** POST with retries on overload, rate limits and network errors (before any output). */
-  private async post(req: AiRequest, stream: boolean): Promise<Response> {
-    const url = `${anthropicBaseUrl(this.config.gateway)}/v1/messages`;
-    const body = JSON.stringify(anthropicRequestBody(req, stream));
-    const maxRetries = this.config.maxRetries ?? 2;
-    const timeout = AbortSignal.timeout(this.config.timeoutMs ?? 90_000);
-    const signal = req.signal ? AbortSignal.any([req.signal, timeout]) : timeout;
-    for (let attempt = 0; ; attempt++) {
-      let res: Response;
-      try {
-        res = await this.fetchImpl(url, {
-          method: "POST",
-          headers: this.headers(req.model),
-          body,
-          signal,
-        });
-      } catch (err) {
-        if (signal.aborted || attempt >= maxRetries)
-          throw new AiProviderError(
-            `The AI provider could not be reached: ${(err as Error).message}`,
-            null,
-            true,
-          );
-        await sleep(500 * 2 ** attempt);
-        continue;
-      }
-      if (res.ok) return res;
-      if (RETRY_STATUSES.has(res.status) && attempt < maxRetries) {
-        const after = Number(res.headers.get("retry-after"));
-        await sleep(
-          Number.isFinite(after) && after > 0 ? Math.min(after, 8) * 1000 : 500 * 2 ** attempt,
-        );
-        continue;
-      }
-      throw new AiProviderError(
-        `The AI provider answered ${res.status}: ${await errorMessage(res)}`,
-        res.status,
-        RETRY_STATUSES.has(res.status),
-      );
-    }
+  private post(req: AiRequest, stream: boolean): Promise<Response> {
+    return postWithRetries({
+      fetch: this.fetchImpl,
+      url: `${anthropicBaseUrl(this.config.gateway)}/v1/messages`,
+      headers: this.headers(req.model),
+      body: JSON.stringify(anthropicRequestBody(req, stream)),
+      signal: req.signal,
+      maxRetries: this.config.maxRetries,
+      timeoutMs: this.config.timeoutMs,
+    });
   }
 
   async complete(req: AiRequest): Promise<AiResponse> {
@@ -266,13 +231,8 @@ export class AnthropicProvider implements AiProvider {
           const index = Number(msg.index);
           const block = blocks[index];
           if (block?.type === "tool_use") {
-            const json = partialJson.get(index) ?? "";
-            try {
-              block.input = json ? JSON.parse(json) : {};
-            } catch {
-              // Cut off mid-input (max_tokens): the runner reports it as an invalid call.
-              block.input = { __invalid_json: json.slice(0, 200) };
-            }
+            // Cut off mid-input (max_tokens): the runner reports it as an invalid call.
+            block.input = parseToolInput(partialJson.get(index) ?? "");
           }
           break;
         }
@@ -303,15 +263,4 @@ export class AnthropicProvider implements AiProvider {
       },
     };
   }
-}
-
-async function errorMessage(res: Response): Promise<string> {
-  const text = await res.text().catch(() => "");
-  try {
-    const json = JSON.parse(text) as { error?: { message?: string } };
-    if (json.error?.message) return json.error.message.slice(0, 300);
-  } catch {
-    // not JSON
-  }
-  return text.slice(0, 300) || res.statusText;
 }

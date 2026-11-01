@@ -2,7 +2,9 @@
 
 import {
   BarChart3Icon,
+  BotIcon,
   BuildingIcon,
+  CalculatorIcon,
   CodeIcon,
   ContactIcon,
   FileTextIcon,
@@ -46,6 +48,8 @@ export const sectionIcons: Record<SectionType, LucideIcon> = {
   developer_logos: BuildingIcon,
   blog_posts: NewspaperIcon,
   cta: MegaphoneIcon,
+  tools: CalculatorIcon,
+  ai_teaser: BotIcon,
   contact_block: ContactIcon,
   form: SquarePenIcon,
   video: VideoIcon,
@@ -67,6 +71,7 @@ export function sectionSummary(s: EditorSection): string {
     str("url");
   if (first) return first.length > 70 ? `${first.slice(0, 68)}…` : first;
   if (s.type === "gallery" && Array.isArray(p.images)) return `${p.images.length} images`;
+  if (s.type === "tools" && Array.isArray(p.tools)) return `${p.tools.length} tools`;
   if (s.type === "promise_strip" && Array.isArray(p.items))
     return (p.items as Array<{ title?: string }>)
       .map((i) => i.title)
@@ -111,6 +116,36 @@ export function SectionThumb({ type }: { type: SectionType }) {
           {bar("w-1/2", "h-2 opacity-80")}
           {bar("w-2/3", "opacity-50")}
           <span className="mt-1 block h-3 w-10 rounded bg-accent" />
+        </span>
+      );
+    case "tools":
+      return (
+        <span className={cn(box, "items-center gap-2")}>
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className="flex h-full flex-1 flex-col gap-1 rounded border border-border p-1"
+            >
+              <span className="block size-3 rounded bg-accent/40" />
+              {bar("w-full")}
+            </span>
+          ))}
+        </span>
+      );
+    case "ai_teaser":
+      return (
+        <span className={cn(box, "gap-2")}>
+          <span className="flex flex-1 flex-col justify-center gap-1">
+            {bar("w-2/3", "h-2 opacity-70")}
+            <span className="mt-1 flex gap-1">
+              <span className="block h-3 w-8 rounded-full border border-ink/40" />
+              <span className="block h-3 w-10 rounded-full border border-ink/40" />
+            </span>
+          </span>
+          <span className="flex w-2/5 flex-col justify-end gap-1 rounded bg-ink/10 p-1">
+            <span className="block h-2 w-3/4 rounded bg-white" />
+            <span className="block h-2 w-1/2 self-end rounded bg-accent/50" />
+          </span>
         </span>
       );
     case "promise_strip":

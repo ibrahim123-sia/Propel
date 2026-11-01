@@ -148,6 +148,23 @@ export const search = {
     nearbyCount: "{name} ({count})",
     clearAll: "Clear all filters",
   },
+  /** Commute time filter (11 §9). */
+  commute: {
+    title: "Commute time",
+    place: "To",
+    anyPlace: "No commute limit",
+    mode: "By",
+    drive: "drive",
+    walk: "walk",
+    byCar: "Car",
+    onFoot: "On foot",
+    within: "Within",
+    minutes: "{minutes} min",
+    card: "{minutes} min {mode} to {place}",
+    cardEstimate: "About {minutes} min {mode} to {place} (estimate)",
+    chip: "Within {minutes} min {mode} of {place}",
+    note: "Measured travel times where we have them; otherwise an estimate from the distance.",
+  },
   chips: {
     price: "{min} – {max}",
     priceFrom: "From {min}",

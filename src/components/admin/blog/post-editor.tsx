@@ -13,6 +13,7 @@ import { ListField, SelectField, TextInputField, TextareaField } from "@/compone
 import { MediaPicker } from "@/components/admin/media/media-picker";
 import { FormSection } from "@/components/admin/page-header";
 import { SeoFields } from "@/components/admin/seo-fields";
+import { aiSuggestSeo } from "@/features/ai/helper-actions";
 import { deletePost, savePost, setPostPublishing } from "@/features/blog/actions";
 import type { PostEditorData } from "@/features/blog/queries";
 import { postPublishProblems, type PostInput } from "@/features/blog/schema";
@@ -48,10 +49,13 @@ export function PostEditor({
   data: initial,
   siteName,
   readOnly,
+  aiHelpers = false,
 }: {
   data: PostEditorData;
   siteName: string;
   readOnly: boolean;
+  /** The writing helpers are on (10 §5). */
+  aiHelpers?: boolean;
 }) {
   const router = useRouter();
   const { id, options } = initial;
@@ -231,6 +235,16 @@ export function PostEditor({
           fallbackDescription={(data.excerpt || plain).slice(0, 155) || undefined}
           siteName={siteName}
           errorFor={errorFor}
+          aiSuggest={
+            aiHelpers && !readOnly
+              ? () =>
+                  aiSuggestSeo({
+                    kind: "blog post",
+                    title: data.title,
+                    text: `${data.excerpt ?? ""} ${plain}`.slice(0, 20_000),
+                  })
+              : undefined
+          }
         />
       </FormSection>
     </ContentEditorLayout>

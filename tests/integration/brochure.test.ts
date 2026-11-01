@@ -19,7 +19,11 @@ import { requestBrochure } from "@/features/brochure/actions";
 import { brochureFileName, brochureVersion, loadBrochure } from "@/features/brochure/data";
 import { brochureRenderJob } from "@/features/brochure/jobs";
 import { brochureTokenValid } from "@/features/brochure/links";
-import { brochureDocument, brochureFile } from "@/features/brochure/render";
+import {
+  brochureDocument,
+  brochureFile,
+  paymentScheduleDocument,
+} from "@/features/brochure/render";
 import { revalidateListings } from "@/features/properties/write";
 import { patchSettings } from "@/features/settings/mutations";
 import { desertModernColors } from "@/features/settings/schema";
@@ -27,6 +31,7 @@ import { newId } from "@/lib/ids";
 import { memoryStorage, setStorage } from "@/lib/storage";
 import { GET as adminGet } from "@/app/api/admin/brochure/[kind]/[id]/route";
 import { GET as publicGet } from "@/app/api/brochure/[kind]/[id]/route";
+import { GET as scheduleGet } from "@/app/api/brochure/[kind]/[id]/schedule/route";
 import { adminState, testAdmin } from "../helpers/admin-context";
 import { truncate } from "../helpers/db";
 
@@ -259,6 +264,35 @@ describe("branded PDF brochure (11 §4)", () => {
       version,
       rendered: false,
     });
+  }, 120_000);
+
+  it("downloads the payment schedule as a one-page PDF; a home without a plan has none", async () => {
+    const w = await world();
+    const id = await home(w);
+    const get = (pid: string) =>
+      scheduleGet(new Request(`http://localhost/api/brochure/property/${pid}/schedule`), {
+        params: Promise.resolve({ kind: "property", id: pid }),
+      });
+    const res = await get(id);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect(res.headers.get("content-disposition")).toContain("payment-schedule-hl-1042.pdf");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect(new TextDecoder("latin1").decode(bytes.slice(0, 5))).toBe("%PDF-");
+    expect(pageCount(bytes)).toBe(1);
+
+    const html = (await paymentScheduleDocument(
+      (await loadBrochure(w.db, "property", id))!.data,
+      "31 October 2026",
+    ))!;
+    expect(html).toContain("Payment schedule");
+    expect(html).toContain("Down payment");
+    expect(html).toContain("On handover");
+    expect(html).toContain("AED 1,470,000"); // 60% of AED 2,450,000
+    expect(html).toContain("Made on 31 October 2026");
+
+    await w.db.update(properties).set({ paymentPlanId: null }).where(eq(properties.id, id));
+    expect((await get(id)).status).toBe(404);
   }, 120_000);
 
   it("gets a new version when the listing, its agent or the branding changes", async () => {

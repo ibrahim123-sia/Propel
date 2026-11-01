@@ -1,4 +1,14 @@
-import { BadgeCheckIcon, MapPinIcon } from "lucide-react";
+import {
+  BadgeCheckIcon,
+  BadgeDollarSignIcon,
+  CalculatorIcon,
+  Columns3Icon,
+  HousePlusIcon,
+  MapPinIcon,
+  TrendingUpIcon,
+  type LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
 import { Fragment, Suspense, type ReactNode } from "react";
 import { ListingCard } from "@/components/site/listings/listing-card";
 import { MediaImage } from "@/components/site/media-image";
@@ -8,7 +18,9 @@ import { withHeadingIds } from "@/features/cms/headings";
 import { areaCards, featuredListingCards, heroSearchOptions } from "@/features/cms/queries";
 import { sectionCatalog } from "@/features/cms/section-catalog";
 import { showcaseProjectCards } from "@/features/projects/public";
-import type { Section } from "@/features/cms/sections";
+import type { Section, SiteTool } from "@/features/cms/sections";
+import { getSettings } from "@/features/settings/queries";
+import { ChatPromptChips } from "@/components/site/chat/chat-controls";
 import { Icon } from "@/lib/icons";
 import { sectionsText as t } from "@/lib/i18n/dictionaries/home";
 import { renderRichText } from "@/lib/rich-text";
@@ -275,7 +287,8 @@ function PromiseStrip({ s }: { s: Extract<Section, { type: "promise_strip" }> })
               </span>
             )}
             <div>
-              <h3 className="text-[17px] font-semibold text-ink">{item.title}</h3>
+              {/* The strip has no heading of its own, so its items are the next level. */}
+              <h2 className="text-[17px] font-semibold text-ink">{item.title}</h2>
               <p className="mt-1 text-[14.5px] text-text">{item.text}</p>
             </div>
           </li>
@@ -329,6 +342,78 @@ function Cta({ s }: { s: Extract<Section, { type: "cta" }> }) {
         <h2 className="text-h2">{s.props.heading}</h2>
         {s.props.text && <p className="mt-4 text-[17px]">{s.props.text}</p>}
         <Buttons buttons={s.props.buttons} />
+      </div>
+    </SectionShell>
+  );
+}
+
+const toolLinks: Record<SiteTool, { href: string; icon: LucideIcon }> = {
+  mortgage: { href: "/tools/mortgage", icon: CalculatorIcon },
+  rental_returns: { href: "/tools/rental-returns", icon: TrendingUpIcon },
+  compare: { href: "/tools/compare", icon: Columns3Icon },
+  valuation: { href: "/valuation", icon: BadgeDollarSignIcon },
+  list_property: { href: "/list-your-property", icon: HousePlusIcon },
+};
+
+/** 06 §3 item 7: cards for the agency's tools. */
+function Tools({ s }: { s: Extract<Section, { type: "tools" }> }) {
+  return (
+    <SectionShell style={s.style} label={s.props.heading || t.tools.label}>
+      <SectionHeading eyebrow={s.props.eyebrow} heading={s.props.heading} />
+      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {s.props.tools.map((tool) => {
+          const ToolIcon = toolLinks[tool].icon;
+          return (
+            <li key={tool}>
+              <Link
+                href={toolLinks[tool].href}
+                prefetch={false}
+                className="flex h-full flex-col gap-3 rounded-[20px] border border-border bg-surface p-6 transition-colors hover:border-ink/40"
+              >
+                <ToolIcon className="size-6 text-accent" aria-hidden />
+                <span className="text-h4 text-ink">{t.tools.items[tool].title}</span>
+                <span className="text-[14.5px] text-text-muted">{t.tools.items[tool].text}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </SectionShell>
+  );
+}
+
+/**
+ * 06 §3 item 6: the assistant teaser, with question chips that open the chat and a small
+ * example of a conversation. Hidden while the website chat is off (there is nothing to open).
+ */
+async function AiTeaser({ s }: { s: Extract<Section, { type: "ai_teaser" }> }) {
+  const ai = await getSettings("ai");
+  if (!ai.webChat.enabled) return null;
+  const first = s.props.prompts[0];
+  return (
+    <SectionShell style={s.style} label={s.props.heading}>
+      <div className="grid items-center gap-10 lg:grid-cols-2">
+        <div>
+          <SectionHeading eyebrow={s.props.eyebrow} heading={s.props.heading} />
+          {s.props.text && <p className="-mt-4 text-[17px] text-text">{s.props.text}</p>}
+          {s.props.prompts.length > 0 && (
+            <ChatPromptChips prompts={s.props.prompts} label={t.aiTeaser.prompts} />
+          )}
+        </div>
+        <figure
+          aria-label={t.aiTeaser.previewLabel}
+          className="flex flex-col gap-3 rounded-[24px] border border-border bg-surface-soft p-6"
+        >
+          <p className="max-w-[85%] self-start rounded-2xl rounded-ss-sm bg-surface px-4 py-3 text-[14.5px] text-ink shadow-sm">
+            {ai.greeting}
+          </p>
+          {first && (
+            <p className="max-w-[85%] self-end rounded-2xl rounded-se-sm bg-ink px-4 py-3 text-[14.5px] text-surface">
+              {first}
+            </p>
+          )}
+          <figcaption className="text-[12.5px] text-text-muted">{ai.assistantName}</figcaption>
+        </figure>
       </div>
     </SectionShell>
   );
@@ -389,6 +474,14 @@ function renderSection(
       return <Stats s={s} />;
     case "cta":
       return <Cta s={s} />;
+    case "tools":
+      return <Tools s={s} />;
+    case "ai_teaser":
+      return (
+        <Suspense fallback={<BlockSkeleton />}>
+          <AiTeaser s={s} />
+        </Suspense>
+      );
     case "search_embed":
       return (
         <Suspense fallback={<GridSkeleton count={Math.min(s.props.count, 3)} />}>

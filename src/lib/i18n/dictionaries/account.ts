@@ -165,7 +165,9 @@ export const account = {
   privacyPage: {
     title: "Privacy",
     download: "Download my data",
-    downloadText: "Everything we keep about you, as a file (JSON). A PDF version is coming.",
+    downloadText:
+      "Everything we keep about you: as a data file (JSON) to take elsewhere, or as a PDF to read.",
+    downloadPdf: "Download as PDF",
     deleteTitle: "Delete my account",
     deleteText:
       "Your saved homes, searches and alerts are deleted. Messages and tours we keep for our records no longer show your name, email or phone. This cannot be undone.",

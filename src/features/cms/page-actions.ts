@@ -79,6 +79,7 @@ const settingsOf = (r: PageRow) => ({
   ogImageId: r.ogImageId,
   canonicalUrl: r.canonicalUrl,
   noindex: r.noindex,
+  hideChat: r.hideChat,
 });
 
 /** "New page": title and a starting layout; it opens in the editor next. */
@@ -134,6 +135,7 @@ export const duplicatePage = adminAction(pageRefSchema, { write: true }, async (
         seoDescription: source.seoDescription,
         ogImageId: source.ogImageId,
         noindex: source.noindex,
+        hideChat: source.hideChat,
         createdBy: ctx.user.id,
         updatedBy: ctx.user.id,
       })
@@ -301,6 +303,7 @@ export const savePageSettings = adminAction(
           ogImageId: data.ogImageId,
           canonicalUrl: data.canonicalUrl || null,
           noindex: data.noindex,
+          hideChat: data.hideChat,
           updatedBy: ctx.user.id,
         })
         .where(eq(pages.id, id))

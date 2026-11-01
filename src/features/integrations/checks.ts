@@ -1,8 +1,13 @@
 import "server-only";
 import type { DbOrTx } from "@/db/client";
 import { loadSettings } from "@/features/settings/queries";
-import { getSecret, recordSecretTest } from "@/features/settings/secrets";
-import type { SecretKey } from "@/features/settings/schema";
+import { getSecret } from "@/features/settings/secrets";
+import { recordIntegrationResult } from "@/features/system/alerts";
+import type { SecretKey, SettingsOf } from "@/features/settings/schema";
+import { aiProviderLabels } from "@/features/ai/provider-labels";
+import { aiKey } from "@/features/ai/config";
+import { gatewayBase } from "@/features/ai/providers/http";
+import type { AiProviderName } from "@/features/ai/types";
 import { testGoogleCalendar } from "./google-calendar/calendar";
 import { testMapsConnection } from "./google-maps";
 
@@ -37,8 +42,10 @@ async function check(
   key: SecretKey,
   db: DbOrTx | undefined,
   run: (secret: string) => Promise<CheckResult>,
+  /** Where the key comes from when none is saved (AI keys can live in the environment). */
+  lookup: () => Promise<string | null> = () => getSecret(key, db),
 ): Promise<CheckResult> {
-  const secret = await getSecret(key, db);
+  const secret = await lookup();
   if (!secret) return { ok: false, message: "Add the key first." };
   let result: CheckResult;
   try {
@@ -52,7 +59,7 @@ async function check(
         : `Could not connect: ${(err as Error).message}`,
     };
   }
-  await recordSecretTest(key, result.ok ? null : result.message, db);
+  await recordIntegrationResult(key, result.ok ? null : result.message, db);
   return result;
 }
 
@@ -97,39 +104,102 @@ export async function testWhatsapp(db?: DbOrTx): Promise<CheckResult> {
   });
 }
 
+type AiSettings = SettingsOf<"integrations">["ai"];
+
+/** The models a key can use, from the provider's model list (empty when it lists none). */
+async function listModels(
+  provider: AiProviderName,
+  key: string,
+  ai: AiSettings,
+  db: DbOrTx | undefined,
+): Promise<{ ok: true; models: Set<string> } | { ok: false; message: string }> {
+  const gateway =
+    ai.gatewayAccountId && ai.gatewayName
+      ? { accountId: ai.gatewayAccountId, name: ai.gatewayName }
+      : null;
+  const headers: Record<string, string> = {};
+  if (gateway) {
+    const gatewayToken = await getSecret("ai_gateway_token", db);
+    if (gatewayToken) headers["cf-aig-authorization"] = `Bearer ${gatewayToken}`;
+  }
+  let url: string;
+  if (provider === "anthropic") {
+    url = `${gatewayBase(gateway, "anthropic") ?? "https://api.anthropic.com"}/v1/models`;
+    Object.assign(headers, { "x-api-key": key, "anthropic-version": "2023-06-01" });
+  } else if (provider === "groq") {
+    url = `${gatewayBase(gateway, "groq") ?? "https://api.groq.com/openai/v1"}/models`;
+    headers.authorization = `Bearer ${key}`;
+  } else if (provider === "xai") {
+    url = `${gatewayBase(gateway, "grok") ?? "https://api.x.ai"}/v1/models`;
+    headers.authorization = `Bearer ${key}`;
+  } else {
+    url = `${gatewayBase(gateway, "google-ai-studio") ?? "https://generativelanguage.googleapis.com"}/v1beta/models?pageSize=1000`;
+    headers["x-goog-api-key"] = key;
+  }
+  const res = await fetch(url, { headers, signal: timeout() });
+  if (!res.ok)
+    return {
+      ok: false,
+      message: `${aiProviderLabels[provider]} answered ${res.status}: ${await errorText(res)}`,
+    };
+  const body = (await res.json()) as {
+    data?: Array<{ id: string }>;
+    models?: Array<{ name: string }>;
+  };
+  const ids = [
+    ...(body.data ?? []).map((m) => m.id),
+    ...(body.models ?? []).map((m) => m.name.replace(/^models\//, "")),
+  ];
+  return { ok: true, models: new Set(ids) };
+}
+
+async function testAiKey(
+  key: SecretKey,
+  provider: AiProviderName,
+  models: string[],
+  ai: AiSettings,
+  db: DbOrTx | undefined,
+): Promise<CheckResult> {
+  return check(
+    key,
+    db,
+    async (secret) => {
+      const listed = await listModels(provider, secret, ai, db);
+      if (!listed.ok) return listed;
+      const missing = [...new Set(models.filter(Boolean))].filter(
+        (m) => listed.models.size > 0 && !listed.models.has(m),
+      );
+      const via = ai.gatewayAccountId && ai.gatewayName ? " through the AI Gateway" : "";
+      return missing.length
+        ? {
+            ok: false,
+            message: `${aiProviderLabels[provider]}: connected, but these models are not available: ${missing.join(", ")}`,
+          }
+        : { ok: true, message: `${aiProviderLabels[provider]}: connected${via}` };
+    },
+    () => aiKey(key === "ai_api_key" ? "ai_api_key" : "ai_fallback_api_key", provider, db),
+  );
+}
+
+/** The provider, then the backup provider when one is set. */
 export async function testAi(db?: DbOrTx): Promise<CheckResult> {
   const { ai } = await loadSettings("integrations", db);
   if (ai.provider === "mock") {
     return { ok: true, message: "Using the built-in test provider (no key needed)." };
   }
-  return check("ai_api_key", db, async (key) => {
-    const viaGateway = ai.gatewayAccountId && ai.gatewayName;
-    const base = viaGateway
-      ? `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(ai.gatewayAccountId)}/${encodeURIComponent(ai.gatewayName)}/anthropic`
-      : "https://api.anthropic.com";
-    const headers: Record<string, string> = { "x-api-key": key, "anthropic-version": "2023-06-01" };
-    if (viaGateway) {
-      const gatewayToken = await getSecret("ai_gateway_token", db);
-      if (gatewayToken) headers["cf-aig-authorization"] = `Bearer ${gatewayToken}`;
-    }
-    const res = await fetch(`${base}/v1/models`, { headers, signal: timeout() });
-    if (!res.ok)
-      return {
-        ok: false,
-        message: `The AI provider answered ${res.status}: ${await errorText(res)}`,
-      };
-    const body = (await res.json()) as { data?: Array<{ id: string }> };
-    const known = new Set((body.data ?? []).map((m) => m.id));
-    const missing = [ai.chatModel, ai.fastModel].filter(
-      (m) => m && known.size > 0 && !known.has(m),
-    );
-    return missing.length
-      ? {
-          ok: false,
-          message: `Connected, but these models are not available: ${missing.join(", ")}`,
-        }
-      : { ok: true, message: `Connected${viaGateway ? " through the AI Gateway" : ""}` };
-  });
+  const main = await testAiKey("ai_api_key", ai.provider, [ai.chatModel, ai.fastModel], ai, db);
+  if (ai.fallbackProvider === "none") return main;
+  const backup = await testAiKey(
+    "ai_fallback_api_key",
+    ai.fallbackProvider,
+    [ai.fallbackChatModel, ai.fallbackFastModel],
+    ai,
+    db,
+  );
+  return {
+    ok: main.ok && backup.ok,
+    message: `${main.message}. Backup: ${backup.message}`,
+  };
 }
 
 export function runCheck(name: TestableIntegration, db?: DbOrTx): Promise<CheckResult> {

@@ -7,8 +7,9 @@ const backgrounds: Record<SectionStyle["background"], string> = {
   sand: "bg-bg",
   white: "bg-surface",
   soft: "bg-surface-soft",
-  ink: "bg-ink text-surface [&_.text-ink]:text-surface [&_.text-text-muted]:text-surface/75",
-  image: "bg-ink text-surface",
+  // On dark backgrounds the accent is too dark for small text (2.96:1): eyebrows use its tint.
+  ink: "bg-ink text-surface [&_.text-ink]:text-surface [&_.text-text-muted]:text-surface/75 [&_.text-eyebrow]:text-accent-soft",
+  image: "bg-ink text-surface [&_.text-eyebrow]:text-accent-soft",
 };
 
 const spacing: Record<SectionStyle["spacing"], string> = {

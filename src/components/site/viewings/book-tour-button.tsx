@@ -4,13 +4,7 @@ import { CalendarCheckIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { LazyDialog } from "@/components/ui/lazy-dialog";
 import { viewings as t } from "@/lib/i18n/dictionaries/viewings";
 
 // The booking flow loads when someone opens it, not with the page.
@@ -34,15 +28,9 @@ export function BookTourButton({
       <Button size="md" className="w-full" onClick={() => setOpen(true)}>
         <CalendarCheckIcon aria-hidden /> {t.booking.title}
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t.booking.title}</DialogTitle>
-            <DialogDescription>{subject}</DialogDescription>
-          </DialogHeader>
-          {open && <BookingForm projectId={projectId} agentName={agentName} />}
-        </DialogContent>
-      </Dialog>
+      <LazyDialog open={open} onOpenChange={setOpen} title={t.booking.title} description={subject}>
+        {open && <BookingForm projectId={projectId} agentName={agentName} />}
+      </LazyDialog>
     </>
   );
 }

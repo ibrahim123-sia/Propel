@@ -26,6 +26,8 @@ export const settingGroups = [
   "security",
   /** Footer text and the announcement bar, edited at Website -> Menus (08 §2). */
   "website",
+  /** Which demo preset is loaded and which one the next reset loads (16 §2-3). */
+  "demo",
 ] as const;
 export type SettingGroup = (typeof settingGroups)[number];
 

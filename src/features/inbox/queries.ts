@@ -108,6 +108,8 @@ export type InboxMessage = {
   toolCalls: Array<{ tool: string; summary: string }>;
   status: "queued" | "sent" | "delivered" | "read" | "failed";
   error: string | null;
+  /** An assistant answer an admin flagged as bad (10 §2), with what was wrong. */
+  flag: { at: string; note: string | null } | null;
   createdAt: string;
 };
 
@@ -191,6 +193,7 @@ export async function loadConversation(db: DbOrTx, id: string) {
       toolCalls: m.toolCalls,
       status,
       error,
+      flag: m.flaggedAt ? { at: m.flaggedAt.toISOString(), note: m.flagNote } : null,
       createdAt: m.createdAt.toISOString(),
     };
   });

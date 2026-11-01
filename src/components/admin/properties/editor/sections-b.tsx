@@ -3,7 +3,7 @@
 import { BadgeCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { AiButton, paragraphsToDoc } from "@/components/admin/ai/ai-button";
-import { aiSuggestSeo, aiWriteDescription } from "@/features/ai/helper-actions";
+import { aiEditDescription, aiSuggestSeo, aiWriteDescription } from "@/features/ai/helper-actions";
 import type { PropertyInput } from "@/features/properties/schema";
 import {
   CheckboxListField,
@@ -56,6 +56,25 @@ export function DescriptionSection({ data, set, errorFor, aiHelpers, propertyId 
               set({ description: paragraphsToDoc(text) as PropertyInput["description"] });
             }}
           />
+          {/* 07 §3.7: work on the text as it is now; formatting comes back as paragraphs. */}
+          {richTextToPlain(data.description).trim().length >= 40 &&
+            (["improve", "shorten"] as const).map((edit) => (
+              <AiButton
+                key={edit}
+                label={edit === "improve" ? "Improve" : "Shorten"}
+                run={() =>
+                  aiEditDescription({
+                    propertyId,
+                    current: richTextToPlain(data.description),
+                    edit,
+                  })
+                }
+                onResult={({ text }) => {
+                  setBefore({ value: data.description });
+                  set({ description: paragraphsToDoc(text) as PropertyInput["description"] });
+                }}
+              />
+            ))}
           {before && (
             <Button
               type="button"

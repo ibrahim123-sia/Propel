@@ -26,6 +26,7 @@ export type PublicPage = {
   ogImageId: string | null;
   canonicalUrl: string | null;
   noindex: boolean;
+  hideChat: boolean;
   /** When the live version was published (the legal template's "Last updated"). */
   publishedAt: string | null;
 };
@@ -50,6 +51,7 @@ export function toPublicPage(row: Row, sections: StoredSection[], publishedAt: D
     ogImageId: row.ogImageId,
     canonicalUrl: row.canonicalUrl,
     noindex: row.noindex,
+    hideChat: row.hideChat,
     publishedAt: publishedAt?.toISOString() ?? null,
   } satisfies PublicPage;
 }

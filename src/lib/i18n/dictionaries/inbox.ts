@@ -19,6 +19,14 @@ export const inbox = {
     allChannels: "All channels",
   },
   senders: { customer: "Customer", ai: "Assistant", admin: "Team", system: "Automatic" },
+  flag: {
+    open: "Flag this answer",
+    noteLabel: "What was wrong",
+    notePlaceholder: "What was wrong? (optional)",
+    save: "Flag",
+    flagged: "Flagged as a bad answer",
+    remove: "Remove flag",
+  },
   messageStatus: {
     queued: "Sending",
     sent: "Sent",

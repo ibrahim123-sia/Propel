@@ -502,6 +502,10 @@ export const messages = pgTable(
       .default("sent"),
     externalId: text(),
     error: text(),
+    /** An admin marked this assistant answer as bad (10 §2 "review and flag bad answers"). */
+    flaggedAt: timestamp({ withTimezone: true }),
+    flaggedBy: uuid(),
+    flagNote: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

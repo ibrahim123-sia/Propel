@@ -10,6 +10,7 @@ import {
   suggestAltText,
   suggestSeo,
   suggestTitles,
+  editDescription,
   writeDescription,
   type HelperResult,
 } from "./helpers";
@@ -28,6 +29,19 @@ export const aiWriteDescription = adminAction(
   z.object({ propertyId: z.uuid() }),
   {},
   async ({ propertyId }) => ({ text: value(await writeDescription(await getDb(), propertyId)) }),
+);
+
+/** 07 §3.7: "Improve" and "Shorten" work on the text in the editor (saved or not). */
+export const aiEditDescription = adminAction(
+  z.object({
+    propertyId: z.uuid(),
+    current: z.string().max(20_000),
+    edit: z.enum(["improve", "shorten"]),
+  }),
+  {},
+  async ({ propertyId, current, edit }) => ({
+    text: value(await editDescription(await getDb(), propertyId, current, edit)),
+  }),
 );
 
 export const aiSuggestTitles = adminAction(

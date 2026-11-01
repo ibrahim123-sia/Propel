@@ -67,20 +67,29 @@ export function ChatPanel({
   greeting,
   askContactFirst,
   humanButton,
+  initialText = "",
   onClose,
 }: {
   title: string;
   greeting: string;
   askContactFirst: boolean;
   humanButton: "always" | "after_3";
+  /** A question to start with (a teaser chip): typed in, for the visitor to send. */
+  initialText?: string;
   onClose: () => void;
 }) {
   const [started, setStarted] = useState<boolean | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const fastUntil = useRef(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", message: "", website: "" });
-  const [text, setText] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: initialText,
+    website: "",
+  });
+  const [text, setText] = useState(initialText);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

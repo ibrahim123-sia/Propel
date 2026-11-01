@@ -75,4 +75,11 @@ test("listing editor: AI description, titles and SEO; blog: a draft from a brief
     "select status, is_ai_drafted from posts order by created_at desc limit 1",
   );
   expect(posts.rows[0]).toMatchObject({ status: "draft", is_ai_drafted: true });
+
+  // The post's SEO panel offers the same suggestions.
+  await page.getByRole("button", { name: "Suggest title and description" }).click();
+  const postOptions = page.getByRole("list", { name: "Suggestions" });
+  await expect(postOptions).toBeVisible({ timeout: 30_000 });
+  await postOptions.getByRole("button").first().click();
+  await expect(page.getByRole("textbox", { name: "SEO title" })).not.toHaveValue("");
 });

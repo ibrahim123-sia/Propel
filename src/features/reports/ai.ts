@@ -12,6 +12,12 @@ export type AiReportNumbers = {
   conversationsHandled: number;
   handedOver: number;
   viewingsBooked: number;
+  /** The assistant's answers to visitor messages in the period (cards and notices left out). */
+  answers: number;
+  /** Of those, answers that used a lookup tool first (10 §6 "answer grounded rate"). */
+  groundedAnswers: number;
+  /** Of those, answers an admin flagged as bad in the inbox (10 §2). */
+  flaggedAnswers: number;
   /** Estimated AI spend in the period (every AI feature), USD cents. */
   costCents: number | null;
 };
@@ -24,6 +30,22 @@ export type AiReportNumbers = {
  * - AI cost: the estimated spend of every AI feature in the period (`ai_usage`, by the
  *   agency's calendar day).
  */
+/** Tools that look something up: an answer after one of these is backed by data. */
+export const GROUNDING_TOOLS = [
+  "search_listings",
+  "get_listing",
+  "get_project",
+  "nearby",
+  "area_info",
+  "answer_faq",
+  "mortgage_estimate",
+  "rental_return",
+  "compare",
+  "available_slots",
+  "book_viewing",
+  "send_brochure",
+] as const;
+
 export async function aiReportNumbers(
   db: DbOrTx,
   range: DateRange,
@@ -39,6 +61,9 @@ export async function aiReportNumbers(
       conversationsHandled: 0,
       handedOver: 0,
       viewingsBooked: 0,
+      answers: 0,
+      groundedAnswers: 0,
+      flaggedAnswers: 0,
       costCents: null,
     };
   const res = await db.execute<{
@@ -46,14 +71,26 @@ export async function aiReportNumbers(
     handed: number;
     viewings: number;
     micros: number;
+    answers: number;
+    grounded: number;
+    flagged: number;
   }>(sql`
     with handled as (
       select distinct c.id, c.status
       from messages m join conversations c on c.id = m.conversation_id
       where m.agency_id = ${agency()} and m.sender = 'ai'
         and ${within(sql`m.created_at`, range, timeZone)}
+    ), answers as (
+      select m.tool_calls, m.flagged_at from messages m
+      where m.agency_id = ${agency()} and m.sender = 'ai' and m.in_reply_to is not null
+        and ${within(sql`m.created_at`, range, timeZone)}
     )
     select
+      (select count(*) from answers)::int as answers,
+      (select count(*) from answers a where exists (
+        select 1 from jsonb_array_elements(a.tool_calls) e
+        where e->>'tool' = any(${sql.raw(`array[${GROUNDING_TOOLS.map((x) => `'${x}'`).join(",")}]`)})))::int as grounded,
+      (select count(*) from answers a where a.flagged_at is not null)::int as flagged,
       (select count(*) from handled)::int as handled,
       (select count(*) from handled h where h.status in ('needs_human', 'human')
         or exists (select 1 from messages a where a.conversation_id = h.id
@@ -70,6 +107,9 @@ export async function aiReportNumbers(
     conversationsHandled: num(r.handled),
     handedOver: num(r.handed),
     viewingsBooked: num(r.viewings),
+    answers: num(r.answers),
+    groundedAnswers: num(r.grounded),
+    flaggedAnswers: num(r.flagged),
     costCents: Math.round(num(r.micros) / 10_000),
   };
 }
@@ -103,6 +143,11 @@ export async function aiReport(db: DbOrTx, ctx: ReportContext): Promise<ReportDa
       kpi("handled", k.handled, n.conversationsHandled),
       kpi("handedOver", k.handedOver, n.handedOver, false),
       kpi("viewings", k.viewings, n.viewingsBooked),
+      {
+        ...kpi("grounded", k.grounded, n.answers ? n.groundedAnswers / n.answers : 0),
+        format: "percent" as const,
+      },
+      kpi("flagged", k.flagged, n.flaggedAnswers, false),
     ],
     tables: [
       {
@@ -116,6 +161,17 @@ export async function aiReport(db: DbOrTx, ctx: ReportContext): Promise<ReportDa
           { key: "handled", cells: { metric: k.handled, value: n.conversationsHandled } },
           { key: "handedOver", cells: { metric: k.handedOver, value: n.handedOver } },
           { key: "viewings", cells: { metric: k.viewings, value: n.viewingsBooked } },
+          { key: "answers", cells: { metric: k.answers, value: n.answers } },
+          {
+            key: "grounded",
+            cells: {
+              metric: k.grounded,
+              value: n.answers
+                ? `${n.groundedAnswers} (${Math.round((n.groundedAnswers / n.answers) * 100)}%)`
+                : "0",
+            },
+          },
+          { key: "flagged", cells: { metric: k.flagged, value: n.flaggedAnswers } },
           {
             key: "cost",
             cells: {

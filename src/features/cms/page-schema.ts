@@ -118,6 +118,7 @@ export const pageSettingsSchema = z
     ogImageId: z.uuid().nullable(),
     canonicalUrl,
     noindex: z.boolean(),
+    hideChat: z.boolean().default(false),
   })
   .strict();
 

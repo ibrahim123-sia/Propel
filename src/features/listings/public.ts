@@ -139,7 +139,10 @@ export type PublicListing = {
     description: string | null;
     canonicalUrl: string | null;
     noindex: boolean;
+    /** The share image: the one chosen in the editor, else the cover photo. */
     ogImageUrl: string | null;
+    /** Only the one chosen in the editor (otherwise the generated share card is used). */
+    chosenOgImageUrl: string | null;
   };
   publishedAt: string | null;
   locationId: string | null;
@@ -456,6 +459,7 @@ export async function getPublicListing(slug: string): Promise<PublicListing | nu
       canonicalUrl: row.canonicalUrl,
       noindex: row.noindex,
       ogImageUrl: ogImageUrl ?? (photos[0] ? mediaUrl(photos[0].key) : null),
+      chosenOgImageUrl: ogImageUrl,
     },
     publishedAt: row.publishedAt?.toISOString() ?? null,
     locationId: row.locationId,

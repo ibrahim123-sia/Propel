@@ -1,11 +1,24 @@
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { badges, facilities, locations, propertyTypes } from "@/db/schema/master-data";
+import {
+  badges,
+  facilities,
+  locations,
+  poiTypes,
+  pois,
+  propertyTypes,
+} from "@/db/schema/master-data";
 import { agents } from "@/db/schema/people";
 import { paymentPlanSteps, paymentPlans } from "@/db/schema/payment-plans";
 import { projects } from "@/db/schema/projects";
-import { properties, propertyBadges, propertyFacilities } from "@/db/schema/properties";
-import { parseSearch } from "@/features/search/params";
+import {
+  properties,
+  propertyBadges,
+  propertyFacilities,
+  propertyPois,
+} from "@/db/schema/properties";
+import { encodePolygon, parseSearch } from "@/features/search/params";
 import { searchListings, searchPins } from "@/features/search/query";
 import { patchSettings } from "@/features/settings/mutations";
 import { newId } from "@/lib/ids";
@@ -119,6 +132,9 @@ describe("public search", () => {
     adminState.user = testAdmin;
     await truncate(
       "properties",
+      "property_pois",
+      "pois",
+      "poi_types",
       "property_facilities",
       "property_badges",
       "projects",
@@ -221,5 +237,58 @@ describe("public search", () => {
     expect(Math.abs(pin.lng - 55.123456)).toBeLessThan(0.006);
     expect(Math.abs(pin.lat - 25.098765)).toBeLessThan(0.006);
     expect(pins.filter((p) => !p.approx)).toHaveLength(23);
+  });
+
+  it("drawn areas and commute times return the right homes (11 §8, §9)", async () => {
+    const { db } = await world();
+    const type = newId();
+    const mall = newId();
+    await db.insert(poiTypes).values({ id: type, name: "Mall", category: "shopping" });
+    const at = { lng: 55.14, lat: 25.08 };
+    await db.insert(pois).values({ id: mall, poiTypeId: type, name: "Marina Mall", point: at });
+    // ~200 m away with a measured 10-minute drive and 15-minute walk; ~3 km away, never
+    // measured; ~20 km away.
+    const near = await listing(db, { point: { lng: at.lng + 0.002, lat: at.lat } });
+    const mid = await listing(db, { point: { lng: at.lng + 0.03, lat: at.lat } });
+    const far = await listing(db, { point: { lng: at.lng + 0.2, lat: at.lat } });
+    await db.insert(propertyPois).values({
+      propertyId: near,
+      poiId: mall,
+      straightDistanceM: 200,
+      driveSeconds: 600,
+      walkSeconds: 900,
+    });
+    const ids = async (sp: Record<string, string>) =>
+      (await searchListings(parseSearch(sp))).cards.map((c) => c.id).sort();
+
+    // A drawn area around the first two homes only.
+    const ring: Array<[number, number]> = [
+      [at.lng - 0.01, at.lat - 0.01],
+      [at.lng + 0.05, at.lat - 0.01],
+      [at.lng + 0.05, at.lat + 0.01],
+      [at.lng - 0.01, at.lat + 0.01],
+    ];
+    expect(await ids({ poly: encodePolygon(ring) })).toEqual([near, mid].sort());
+
+    // 3 km by car is about 9 minutes (estimate); the measured 10 minutes counts as measured.
+    const res = await searchListings(parseSearch({ commute: `${mall}.drive.10` }));
+    expect(res.cards.map((c) => c.id).sort()).toEqual([near, mid].sort());
+    expect(res.cards.find((c) => c.id === near)!.commute).toEqual({
+      minutes: 10,
+      mode: "drive",
+      place: "Marina Mall",
+      estimate: false,
+    });
+    expect(res.cards.find((c) => c.id === mid)!.commute).toMatchObject({
+      minutes: 9,
+      estimate: true,
+    });
+    expect(await ids({ commute: `${mall}.drive.60` })).toEqual([near, mid, far].sort());
+    // On foot: only the measured 15-minute walk is within 15 minutes.
+    expect(await ids({ commute: `${mall}.walk.15` })).toEqual([near]);
+    // An inactive place matches nothing; a malformed one is ignored.
+    await db.update(pois).set({ isActive: false }).where(eq(pois.id, mall));
+    expect(await ids({ commute: `${mall}.drive.60` })).toEqual([]);
+    expect(parseSearch({ commute: `${mall}.drive.7` }).commute).toBeNull();
   });
 });

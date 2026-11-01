@@ -112,4 +112,8 @@ test("phone: the menu holds the button and the currency choice @phone", async ({
     )
     .toBe("USD");
   await expect(sheet.getByRole("radio", { name: "USD · example rate" })).toBeChecked();
+  // The sheet loads on the first open; closing it gives focus back to the menu button.
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
 });

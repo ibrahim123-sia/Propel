@@ -4,13 +4,7 @@ import { InfoIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { LazyDialog } from "@/components/ui/lazy-dialog";
 import {
   downPaymentOf,
   minDownPct,
@@ -329,36 +323,33 @@ export function MortgageCalculator({
         </section>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t.mortgage.preApproval.title}</DialogTitle>
-            <DialogDescription>
-              {format(t.mortgage.preApproval.summary, {
-                loan: money(m.loan),
-                years: s.years,
-                monthly: money(m.monthlyPayment),
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          {open && (
-            <PreApprovalForm
-              incomeBands={incomeBands}
-              listingRef={s.ref}
-              calculation={{
-                price: m.price,
-                downPayment: m.downPayment,
-                years: s.years,
-                ratePct: s.ratePct,
-                registrationFeePct: s.registrationFeePct,
-                agencyFeePct: s.agencyFeePct,
-                arrangementFeePct: s.arrangementFeePct,
-              }}
-              onDone={() => setOpen(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      <LazyDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t.mortgage.preApproval.title}
+        description={format(t.mortgage.preApproval.summary, {
+          loan: money(m.loan),
+          years: s.years,
+          monthly: money(m.monthlyPayment),
+        })}
+      >
+        {open && (
+          <PreApprovalForm
+            incomeBands={incomeBands}
+            listingRef={s.ref}
+            calculation={{
+              price: m.price,
+              downPayment: m.downPayment,
+              years: s.years,
+              ratePct: s.ratePct,
+              registrationFeePct: s.registrationFeePct,
+              agencyFeePct: s.agencyFeePct,
+              arrangementFeePct: s.arrangementFeePct,
+            }}
+            onDone={() => setOpen(false)}
+          />
+        )}
+      </LazyDialog>
     </div>
   );
 }

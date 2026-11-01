@@ -1,0 +1,1 @@
+ALTER TABLE "pages" ADD COLUMN "hide_chat" boolean DEFAULT false NOT NULL;

@@ -3,13 +3,7 @@
 import { DownloadIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState, useSyncExternalStore } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { LazyDialog } from "@/components/ui/lazy-dialog";
 import type { BrochureKind } from "@/features/brochure/types";
 import { brochure as t } from "@/lib/i18n/dictionaries/brochure";
 
@@ -66,15 +60,9 @@ export function BrochureButton({
       >
         <DownloadIcon className="size-4" aria-hidden /> {label}
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t.gate.title}</DialogTitle>
-            <DialogDescription>{subject}</DialogDescription>
-          </DialogHeader>
-          {open && <GateForm kind={kind} id={id} onClose={() => setOpen(false)} />}
-        </DialogContent>
-      </Dialog>
+      <LazyDialog open={open} onOpenChange={setOpen} title={t.gate.title} description={subject}>
+        {open && <GateForm kind={kind} id={id} onClose={() => setOpen(false)} />}
+      </LazyDialog>
     </>
   );
 }

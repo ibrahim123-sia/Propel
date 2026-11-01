@@ -1,3 +1,4 @@
+import { DownloadIcon } from "lucide-react";
 import { cn } from "cn";
 import {
   formatPercent,
@@ -43,6 +44,7 @@ export function PaymentPlanView({
   className,
   headingLevel = 3,
   preview,
+  scheduleHref,
 }: {
   steps: ReadonlyArray<Omit<PlanStep, "id"> & { id?: string }>;
   summaryLabel?: string | null;
@@ -52,6 +54,8 @@ export function PaymentPlanView({
   headingLevel?: 2 | 3;
   /** Admin preview: also says why an incomplete plan is not shown on the site. */
   preview?: boolean;
+  /** The site's "Download payment schedule" PDF (06 §5.8). */
+  scheduleHref?: string;
 }) {
   const label = summaryLabel || suggestSummaryLabel(steps);
   const total = planTotalBasisPoints(steps);
@@ -139,6 +143,16 @@ export function PaymentPlanView({
       </ol>
 
       {notes && <p className="text-[13px] whitespace-pre-line text-text-muted">{notes}</p>}
+      {scheduleHref && !problem && (
+        <a
+          href={scheduleHref}
+          download
+          className="inline-flex items-center gap-2 self-start text-[14px] font-semibold text-accent hover:underline print:hidden"
+        >
+          <DownloadIcon className="size-4" aria-hidden />
+          Download payment schedule (PDF)
+        </a>
+      )}
       {preview && problem && steps.length > 0 && (
         <p className="text-[13px] font-medium text-danger">Not shown on the site yet: {problem}</p>
       )}

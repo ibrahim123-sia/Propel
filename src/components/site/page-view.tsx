@@ -34,7 +34,7 @@ export async function PageView({
 
   if (page.template === "legal") {
     return (
-      <SiteChrome>
+      <SiteChrome hideChat={page.hideChat}>
         <LegalLayout page={page} toc={toc} timeZone={general.timeZone}>
           <RenderSections
             sections={page.sections}
@@ -70,7 +70,7 @@ export async function PageView({
   return page.template === "landing" ? (
     <LandingChrome>{body}</LandingChrome>
   ) : (
-    <SiteChrome>{body}</SiteChrome>
+    <SiteChrome hideChat={page.hideChat}>{body}</SiteChrome>
   );
 }
 

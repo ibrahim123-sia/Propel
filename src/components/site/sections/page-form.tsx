@@ -1,16 +1,27 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useId, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { FormAlert } from "@/components/auth/auth-card";
 import { TextField } from "@/components/auth/text-field";
 import { Turnstile, turnstileEnabled } from "@/components/forms/turnstile";
 import { Button } from "@/components/ui/button";
 import { sendPageForm } from "@/features/forms/actions";
-import { pageFormSchema, type PageFormInput, type PageFormType } from "@/features/forms/schema";
+import { checkPageForm } from "@/features/forms/check";
+import type { PageFormInput, PageFormType } from "@/features/forms/schema";
 import { cms } from "@/lib/i18n/dictionaries/cms";
 import { useHydrated } from "@/lib/use-hydrated";
+
+/** The server schema's checks without Zod in the browser (features/forms/check.ts). */
+const resolver: Resolver<PageFormInput> = async (values) => {
+  const found = checkPageForm(values);
+  const keys = Object.keys(found) as Array<keyof PageFormInput>;
+  if (keys.length === 0) return { values, errors: {} };
+  return {
+    values: {},
+    errors: Object.fromEntries(keys.map((key) => [key, { type: "validate", message: found[key] }])),
+  };
+};
 
 /**
  * A page builder form (08 §1 "Form", 06 §10): contact, callback, valuation, list your property
@@ -38,7 +49,7 @@ export function PageForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const form = useForm<PageFormInput>({
-    resolver: zodResolver(pageFormSchema),
+    resolver,
     defaultValues: {
       formType,
       pageId,

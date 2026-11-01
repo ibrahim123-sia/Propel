@@ -1,6 +1,7 @@
 import type { DbOrTx } from "@/db/client";
 import { loadSettings } from "@/features/settings/queries";
-import { getSecret, recordSecretTest } from "@/features/settings/secrets";
+import { getSecret } from "@/features/settings/secrets";
+import { recordIntegrationResult } from "@/features/system/alerts";
 import { haversineMeters, type LngLat } from "@/lib/geo";
 
 /**
@@ -181,7 +182,7 @@ export async function testMapsConnection(db?: DbOrTx): Promise<{ ok: boolean; me
   try {
     const provider = await getMapsProvider(db);
     const res = await provider.geocode("1600 Amphitheatre Parkway, Mountain View, CA");
-    await recordSecretTest("google_maps_server_key", null, db);
+    await recordIntegrationResult("google_maps_server_key", null, db);
     return {
       ok: Boolean(res),
       message: res ? "Connected" : "Key works, but the test address was not found",
@@ -189,7 +190,7 @@ export async function testMapsConnection(db?: DbOrTx): Promise<{ ok: boolean; me
   } catch (err) {
     const message = (err as Error).message;
     if (!(err instanceof MapsNotConfiguredError))
-      await recordSecretTest("google_maps_server_key", message, db);
+      await recordIntegrationResult("google_maps_server_key", message, db);
     return { ok: false, message };
   }
 }

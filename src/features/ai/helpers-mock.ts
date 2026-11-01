@@ -114,6 +114,23 @@ function reply(ctx: MockContext): MockReply | null {
   const system = ctx.request.system;
   if (system.startsWith("You write property listing descriptions"))
     return { text: description((tagged(ctx, "facts") ?? {}) as Facts) };
+  if (system.startsWith("You edit property listing descriptions")) {
+    // The test provider keeps the admin's words: "improve" tidies spacing, "shorten" keeps
+    // the first sentences up to the asked length.
+    const current = String(tagged(ctx, "current") ?? "")
+      .replace(/[ \t]+/g, " ")
+      .trim();
+    const words = /about (\d+) words/.exec(system);
+    if (!words) return { text: current };
+    const max = Number(words[1]);
+    const out: string[] = [];
+    for (const sentence of current.split(/(?<=[.!?])\s+/)) {
+      if (out.join(" ").split(/\s+/).length + sentence.split(/\s+/).length > max && out.length)
+        break;
+      out.push(sentence);
+    }
+    return { text: out.join(" ") };
+  }
   if (system.startsWith("Suggest 3 titles"))
     return { text: JSON.stringify({ titles: titles((tagged(ctx, "facts") ?? {}) as Facts) }) };
   if (system.startsWith("Suggest 3 search-engine"))

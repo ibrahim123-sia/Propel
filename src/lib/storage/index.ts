@@ -61,6 +61,19 @@ export async function getStorage(): Promise<StorageDriver> {
   if (override) return override;
   if (isWorkersRuntime() || env().STORAGE_DRIVER === "r2") {
     const { r2Storage, mediaBucket } = await import("./r2");
+    const e = env();
+    // Outside the Worker there is no binding: the same bucket through R2's S3 API.
+    if (!isWorkersRuntime() && e.R2_ACCOUNT_ID && e.R2_ACCESS_KEY_ID && e.R2_SECRET_ACCESS_KEY) {
+      const { s3Bucket } = await import("./s3");
+      return r2Storage(
+        s3Bucket({
+          endpoint: `https://${e.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+          bucket: e.R2_BUCKET,
+          accessKeyId: e.R2_ACCESS_KEY_ID,
+          secretAccessKey: e.R2_SECRET_ACCESS_KEY,
+        }),
+      );
+    }
     return r2Storage(await mediaBucket());
   }
   const { fsStorage } = await import("./fs");

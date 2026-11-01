@@ -3,7 +3,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { currentAgencyId } from "@/db/schema/_common";
-import { approvalQueue, conversations, quickReplies } from "@/db/schema/crm";
+import { approvalQueue, conversations, messages, quickReplies } from "@/db/schema/crm";
 import { signedBrochurePath } from "@/features/brochure/links";
 import {
   fillTemplate,
@@ -20,6 +20,7 @@ import { writeAudit } from "@/lib/audit";
 import { findListingsForCards, listingFiles } from "./queries";
 import { templateParameters } from "./rules";
 import {
+  answerFlagSchema,
   approvalDecisionSchema,
   conversationStatusSchema,
   listingMessageSchema,
@@ -196,6 +197,38 @@ export const updateConversation = adminAction(
         });
     });
     return { id };
+  },
+);
+
+/**
+ * 10 §2 "admins can review and flag bad answers (used to improve prompts)": only assistant
+ * messages can be flagged; the AI report counts them. Audited.
+ */
+export const flagAssistantAnswer = adminAction(
+  answerFlagSchema,
+  { write: true },
+  async ({ messageId, flagged, note }, ctx) => {
+    const db = await getDb();
+    const [m] = await db
+      .select({ id: messages.id, sender: messages.sender, flaggedAt: messages.flaggedAt })
+      .from(messages)
+      .where(and(eq(messages.id, messageId), eq(messages.agencyId, currentAgencyId())));
+    if (!m || m.sender !== "ai")
+      throw new ActionError("Only the assistant's answers can be flagged.", "NOT_FOUND");
+    const set = flagged
+      ? { flaggedAt: m.flaggedAt ?? new Date(), flaggedBy: ctx.user.id, flagNote: note || null }
+      : { flaggedAt: null, flaggedBy: null, flagNote: null };
+    await db.transaction(async (tx) => {
+      await tx.update(messages).set(set).where(eq(messages.id, messageId));
+      await writeAudit(tx, {
+        actor: ctx.actor,
+        action: flagged ? "ai.answer_flag" : "ai.answer_unflag",
+        entityType: "message",
+        entityId: messageId,
+        after: flagged ? { note: note || null } : null,
+      });
+    });
+    return { id: messageId, flagged };
   },
 );
 

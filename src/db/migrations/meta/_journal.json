@@ -120,6 +120,34 @@
       "when": 1793039003052,
       "tag": "0016_assistant",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793118142924,
+      "tag": "0017_chat_topics",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793456539510,
+      "tag": "0018_page_hide_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793457671758,
+      "tag": "0019_ai_answer_flags",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793527860325,
+      "tag": "0020_property_went_live_at",
+      "breakpoints": true
     }
   ]
 }

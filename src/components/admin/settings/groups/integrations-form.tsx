@@ -11,6 +11,8 @@ import { actionErrorToast } from "@/components/admin/reauth-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { testIntegration } from "@/features/integrations/actions";
+import { aiProviderLabels, suggestedModels } from "@/features/ai/provider-labels";
+import { aiProviderNames } from "@/features/ai/types";
 import { webhookPaths } from "@/features/integrations/catalog";
 import type { TestableIntegration } from "@/features/integrations/checks";
 import type { SecretKey, SettingsOf } from "@/features/settings/schema";
@@ -459,9 +461,23 @@ export function IntegrationsSettingsForm({
             <SelectField
               label="Provider"
               value={value.ai.provider}
-              onChange={(provider) => set({ ai: { ...value.ai, provider } })}
+              onChange={(provider) =>
+                set({
+                  ai: {
+                    ...value.ai,
+                    provider,
+                    // A new provider starts from its suggested models; the admin can type others.
+                    ...(provider !== "mock" && provider !== value.ai.provider
+                      ? {
+                          chatModel: suggestedModels[provider].chat,
+                          fastModel: suggestedModels[provider].fast,
+                        }
+                      : {}),
+                  },
+                })
+              }
               options={[
-                { value: "anthropic", label: "Anthropic (Claude)" },
+                ...aiProviderNames.map((p) => ({ value: p, label: aiProviderLabels[p] })),
                 { value: "mock", label: "Built-in test provider (no key, canned answers)" },
               ]}
             />
@@ -505,6 +521,53 @@ export function IntegrationsSettingsForm({
                   />
                 </div>
                 {value.ai.gatewayAccountId && keyField("ai_gateway_token")}
+                <SelectField
+                  label="Backup provider"
+                  description="Asked when the provider above fails: down, overloaded or out of credit."
+                  value={value.ai.fallbackProvider}
+                  onChange={(fallbackProvider) =>
+                    set({
+                      ai: {
+                        ...value.ai,
+                        fallbackProvider,
+                        ...(fallbackProvider !== "none" &&
+                        fallbackProvider !== value.ai.fallbackProvider
+                          ? {
+                              fallbackChatModel: suggestedModels[fallbackProvider].chat,
+                              fallbackFastModel: suggestedModels[fallbackProvider].fast,
+                            }
+                          : {}),
+                      },
+                    })
+                  }
+                  options={[
+                    { value: "none", label: "None" },
+                    ...aiProviderNames.map((p) => ({ value: p, label: aiProviderLabels[p] })),
+                  ]}
+                />
+                {value.ai.fallbackProvider !== "none" && (
+                  <>
+                    {keyField("ai_fallback_api_key")}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <TextInputField
+                        label="Backup chat model"
+                        value={value.ai.fallbackChatModel}
+                        onChange={(fallbackChatModel) =>
+                          set({ ai: { ...value.ai, fallbackChatModel: fallbackChatModel.trim() } })
+                        }
+                        error={errorFor("ai.fallbackChatModel")}
+                      />
+                      <TextInputField
+                        label="Backup fast model"
+                        value={value.ai.fallbackFastModel}
+                        onChange={(fallbackFastModel) =>
+                          set({ ai: { ...value.ai, fallbackFastModel: fallbackFastModel.trim() } })
+                        }
+                        error={errorFor("ai.fallbackFastModel")}
+                      />
+                    </div>
+                  </>
+                )}
               </>
             )}
             <SelectField

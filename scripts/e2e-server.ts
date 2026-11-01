@@ -7,7 +7,8 @@ import { startTestDatabase } from "./test-db";
  * Starts everything the Playwright suite needs:
  *  1. a fresh in-memory database (all migrations applied) on E2E_DB_PORT (default 5434);
  *  2. Next.js on E2E_PORT (default 3200), in its own build folder so a normal `pnpm dev`
- *     can keep running. E2E_MODE=prod builds and runs the production server (CI).
+ *     can keep running. E2E_MODE=prod builds and runs the production server (CI);
+ *     E2E_SKIP_BUILD=1 reuses the last production build.
  */
 const dbPort = Number(process.env.E2E_DB_PORT ?? 5434);
 const appPort = Number(process.env.E2E_PORT ?? 3200);
@@ -59,9 +60,12 @@ process.on("SIGINT", () => void shutdown());
 process.on("SIGTERM", () => void shutdown());
 
 if (mode === "prod") {
-  const build = next(["build"]);
-  const code: number = await new Promise((r) => build.on("exit", (c) => r(c ?? 1)));
-  if (code !== 0) await shutdown(code);
+  // E2E_SKIP_BUILD=1 serves the last build in .next-e2e (repeat runs against unchanged code).
+  if (process.env.E2E_SKIP_BUILD !== "1") {
+    const build = next(["build"]);
+    const code: number = await new Promise((r) => build.on("exit", (c) => r(c ?? 1)));
+    if (code !== 0) await shutdown(code);
+  }
   next(["start", "--port", String(appPort)]);
 } else {
   next(["dev", "--port", String(appPort)]);

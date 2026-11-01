@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PostEditor } from "@/components/admin/blog/post-editor";
 import { PageHeader } from "@/components/admin/page-header";
 import { getDb } from "@/db/client";
+import { writingHelpersOn } from "@/features/ai/config";
 import { loadPostEditorData } from "@/features/blog/queries";
 import { loadSettings } from "@/features/settings/queries";
 import { requireAdminPage } from "@/lib/auth/guards";
@@ -27,7 +28,12 @@ export default async function PostEditorPage(props: PageProps<"/admin/website/bl
           { label: data.input.title },
         ]}
       />
-      <PostEditor data={data} siteName={general.agencyName} readOnly={user.readOnly} />
+      <PostEditor
+        data={data}
+        siteName={general.agencyName}
+        readOnly={user.readOnly}
+        aiHelpers={!user.readOnly && (await writingHelpersOn(db))}
+      />
     </>
   );
 }

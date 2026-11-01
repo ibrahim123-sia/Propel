@@ -109,14 +109,18 @@ export async function newMatches(
     .where(
       and(
         conditionsFor(search, market),
-        gt(properties.publishedAt, since),
+        // Listings that went live since, first publish or back on the market (decision 70).
+        gt(sql`coalesce(${properties.wentLiveAt}, ${properties.publishedAt})`, since),
         sql`not exists (
           select 1 from alerts_sent a
           where a.saved_search_id = ${search.id} and a.property_id = ${properties.id}
             and a.kind = 'new_match')`,
       ),
     )
-    .orderBy(desc(properties.publishedAt), desc(properties.id))
+    .orderBy(
+      desc(sql`coalesce(${properties.wentLiveAt}, ${properties.publishedAt})`),
+      desc(properties.id),
+    )
     .limit(limit);
   return rows.map((r) => r.id);
 }

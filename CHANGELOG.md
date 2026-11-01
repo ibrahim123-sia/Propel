@@ -37,8 +37,39 @@ All notable changes to Propel. Format: [Keep a Changelog](https://keepachangelog
 - Saved-search and saved-home alerts: instant, daily and weekly, price drops and status changes, with one-click unsubscribe.
 - Redirects now answer with a real 301 from the middleware, and unknown addresses with a real 404.
 - Customer area: save and compare homes, save searches, a sign-in prompt that finishes a guest's save, and `/account` (saved homes and shareable lists, searches, tours, inquiries, chats, compare, profile, notifications, data download and account deletion); 3 demo customers.
+- Tools: mortgage calculator and rental return simulator pages (shareable, prefilled from a listing), a mortgage pre-approval form, a branded 4-page PDF brochure for listings and projects (optionally behind an email), and a side-by-side compare page.
+- Owners: `/valuation` with an estimate from comparable own listings, `/list-your-property` with photos, owner requests on the lead page with a one-click draft listing; monthly price trends on area and property pages.
+- Reports: Admin -> Reports with charts and CSV/PDF export, dashboard KPIs for a period, suggestion cards worked out from the data, and a weekly report email in the agency time zone.
+- AI layer: one service for Anthropic and a test provider with prompts, budgets and a usage log; embeddings and hybrid search; lead scoring with rules as the fallback; the website chat and the WhatsApp agent answering from the agency's own listings, with listing cards and "Talk to a person"; a summary, requirements and score at the end of each chat.
+- Admin assistant in the top bar: reads anything, and changes things only after you confirm a preview card; the same tools through an MCP server at `/api/mcp` with per-admin tokens.
+- Writing helpers: listing descriptions, titles, SEO titles and descriptions (listings, posts, area guides, projects and pages), alt text, and blog and listing drafts from pasted notes.
+- Weekly chat topics: the week's visitor questions grouped into topics (contact details removed first), shown to the assistant and as a "Blog idea" card on the dashboard.
+- Share cards (Open Graph images) for listings, projects, area guides and posts; a commute time filter to the agency's chosen places.
+- Security headers and a CSP (with a report-only switch), structured logs; System page: overdue and stuck jobs, late scheduled tasks and the release tag.
+- A US-style demo preset (Maple & Main Realty) next to Haven & Dune, with seed data that follows the market settings.
+- README screenshots, refreshed with `SCREENSHOTS=1` and Playwright.
+- AI providers: xAI (Grok) and Google (Gemini) next to Anthropic, and a backup provider that answers when the main one fails.
+- Daily summary email to admins, an email and an admin banner when an integration stops working, and a monthly reminder to check exchange rates.
+- Nightly data retention: old guest chats, people whose leads were lost long ago, and visitor events after 180 days.
+- Data download as a PDF too; emails when an account is deleted and when its data is downloaded.
+- Page builder: a Tools section and an AI assistant teaser whose questions open the chat; "Hide the chat button on this page".
+- Newsletter signup under blog posts; payment schedule PDF on listing and project pages.
+- Listing descriptions: "Improve" and "Shorten" next to "Write with AI".
+- Inbox: flag a bad assistant answer; the AI report shows answers, the share backed by a lookup and the flagged ones.
+- Google Meet links for video viewings, from the agent's calendar event.
+- Every server error is logged with the release tag, route and request id.
+
+### Performance
+
+- The map stylesheet loads with the map, page builder forms check input without Zod in the browser, and dialogs, the phone menu and the header menus load their code the first time they open.
+- Public pages no longer send their page data twice: a listing page's HTML is about a third smaller (47.7 KB to 30.9 KB compressed). Admin keeps one shared prefetch per screen.
 
 ### Fixed
+
+- No CSP violation report from the form checks on sign-in and other pages.
+- The home page search card no longer squeezes the area field in narrow columns.
+- A listing's address line names each place once ("Dubai Marina, Dubai", not "Dubai Marina, Dubai Marina, ...").
+- Lighthouse accessibility 100 and SEO 100 on the home, search and listing pages on a phone.
 
 - Blog and page rich text saved from the editor no longer fails validation ("Invalid input").
 - The 404 monitor counts visits at request time instead of breaking prerendering.

@@ -252,6 +252,8 @@ describe("property editor", () => {
     const b = await saveProperty({ id, data, expectedUpdatedAt: v1 });
     const published = await setPropertyStatus({ id, status: "available" });
     expect(published).toMatchObject({ ok: true, data: { firstPublish: true } });
+    const [live] = await (await getDb()).select().from(properties).where(eq(properties.id, id));
+    expect(live!.wentLiveAt).toEqual(live!.publishedAt);
     const v2 = published.ok ? published.data.updatedAt : "";
     expect(b.ok).toBe(true);
     const c = await saveProperty({

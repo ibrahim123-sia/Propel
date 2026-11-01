@@ -1,18 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { authClient } from "@/lib/auth/client";
 import { site } from "@/lib/i18n";
+import { useLoadOnDemand } from "@/lib/use-load-on-demand";
+
+// The menu (Radix menu and positioning) and the auth client load on the first click.
+const loadDropdown = () => import("./account-dropdown").then((m) => m.AccountDropdown);
 
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -32,48 +25,22 @@ export function AccountMenuClient({
   email: string;
   isAdmin: boolean;
 }) {
-  const router = useRouter();
-  const t = site.header;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={site.a11y.accountMenu}
-      >
-        <Avatar className="size-10">
-          <AvatarFallback className="bg-ink text-[14px] font-semibold text-surface">
-            {initials(name)}
-          </AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col">
-          <span className="truncate text-sm font-semibold text-ink">{name}</span>
-          <span className="truncate text-xs font-normal text-text-muted">{email}</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {isAdmin && (
-          <DropdownMenuItem asChild>
-            <Link href="/admin">{t.admin}</Link>
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem asChild>
-          <Link href="/account">{t.account}</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/account/profile">{t.profile}</Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={async () => {
-            await authClient.signOut();
-            router.push("/");
-            router.refresh();
-          }}
-        >
-          {t.signOut}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+  const [Dropdown, loadMenu] = useLoadOnDemand(loadDropdown);
+  const trigger = (
+    <button
+      type="button"
+      className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={site.a11y.accountMenu}
+      aria-haspopup="menu"
+      onClick={Dropdown ? undefined : loadMenu}
+    >
+      <Avatar className="size-10">
+        <AvatarFallback className="bg-ink text-[14px] font-semibold text-surface">
+          {initials(name)}
+        </AvatarFallback>
+      </Avatar>
+    </button>
   );
+  if (!Dropdown) return trigger;
+  return <Dropdown trigger={trigger} name={name} email={email} isAdmin={isAdmin} />;
 }

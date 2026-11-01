@@ -17,11 +17,18 @@ export default async function PrivacyPage() {
         <h1 className="text-h1">{t.title}</h1>
         <h2 className="text-h3">{t.download}</h2>
         <p className="text-text-muted">{t.downloadText}</p>
-        <Button asChild variant="outline-site" size="md" className="self-start">
-          <a href="/api/account/export" download>
-            {t.download}
-          </a>
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild variant="outline-site" size="md">
+            <a href="/api/account/export" download>
+              {t.download}
+            </a>
+          </Button>
+          <Button asChild variant="outline-site" size="md">
+            <a href="/api/account/export?format=pdf" download>
+              {t.downloadPdf}
+            </a>
+          </Button>
+        </div>
       </section>
       <section aria-labelledby="delete" className="flex flex-col gap-3">
         <h2 id="delete" className="text-h3 text-danger">

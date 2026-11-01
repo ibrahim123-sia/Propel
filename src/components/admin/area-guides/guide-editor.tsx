@@ -21,6 +21,7 @@ import { newUnitTypeId as newClientId } from "@/components/admin/projects/editor
 import { LocationSelect } from "@/components/admin/properties/editor/location-select";
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { SeoFields } from "@/components/admin/seo-fields";
+import { aiSuggestSeo } from "@/features/ai/helper-actions";
 import { Button } from "@/components/ui/button";
 import { contentStatusLabels } from "@/features/content/schema";
 import { deleteGuide, saveGuide, setGuidePublishing } from "@/features/area-guides/actions";
@@ -133,10 +134,13 @@ export function GuideEditor({
   data: initial,
   siteName,
   readOnly,
+  aiHelpers = false,
 }: {
   data: GuideEditorData;
   siteName: string;
   readOnly: boolean;
+  /** The writing helpers are on (10 §5). */
+  aiHelpers?: boolean;
 }) {
   const router = useRouter();
   const { id, options } = initial;
@@ -511,6 +515,16 @@ export function GuideEditor({
           }
           siteName={siteName}
           errorFor={errorFor}
+          aiSuggest={
+            aiHelpers && !readOnly
+              ? () =>
+                  aiSuggestSeo({
+                    kind: "area guide",
+                    title: area?.name ?? data.title,
+                    text: `${data.intro ?? ""} ${richTextToPlain(data.body)}`.slice(0, 20_000),
+                  })
+              : undefined
+          }
         />
       </FormSection>
 

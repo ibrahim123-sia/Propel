@@ -103,6 +103,11 @@ export async function queueWeeklyReport(
 async function recipientsFor(db: Db, setting: WeeklySetting): Promise<string[]> {
   if (setting.recipients.length)
     return [...new Set(setting.recipients.map((e) => e.toLowerCase()))];
+  return activeAdminEmails(db);
+}
+
+/** Every active admin's email, without the read-only demo viewer. */
+export async function activeAdminEmails(db: Db): Promise<string[]> {
   const rows = await db
     .select({ email: users.email })
     .from(users)

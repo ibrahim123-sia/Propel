@@ -38,6 +38,7 @@ export async function changeStatus(
     .set({
       status: args.next,
       ...(firstPublish ? { publishedAt: now } : {}),
+      ...(publishing ? { wentLiveAt: now } : {}),
       ...(publishing && row.originalPrice === null ? { originalPrice: row.price } : {}),
       updatedBy: args.userId,
     })

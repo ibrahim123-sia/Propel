@@ -31,6 +31,16 @@ export const sectionCatalog: Record<
     description: "A heading, a short text and up to two buttons.",
     group: "intro",
   },
+  tools: {
+    label: "Tools",
+    description: "Cards for the calculators, compare and valuation.",
+    group: "intro",
+  },
+  ai_teaser: {
+    label: "AI assistant teaser",
+    description: "A short text and example questions that open the website chat.",
+    group: "intro",
+  },
   promise_strip: {
     label: "Promise strip",
     description: "Two to four short selling points with icons.",

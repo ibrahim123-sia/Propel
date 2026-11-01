@@ -13,6 +13,8 @@ import {
   type DistanceUnit,
 } from "@/lib/units";
 import { SaveHomeButton } from "@/components/site/account/save-home-button";
+import { format } from "@/lib/i18n";
+import { search as t } from "@/lib/i18n/dictionaries/search";
 import { VerifiedAgo } from "./verified-ago";
 
 /** "Q3 2027" for a date; quarter texts as they are. */
@@ -165,8 +167,17 @@ export function ListingCard({
             </li>
           )}
         </ul>
-        {(l.handover || nearby || l.verifiedAt) && (
+        {(l.handover || nearby || l.verifiedAt || l.commute) && (
           <div className="mt-1 flex flex-col gap-1 text-[12.5px] text-text-muted">
+            {l.commute && (
+              <p className="font-medium text-ink">
+                {format(l.commute.estimate ? t.commute.cardEstimate : t.commute.card, {
+                  minutes: l.commute.minutes,
+                  mode: l.commute.mode === "walk" ? t.commute.walk : t.commute.drive,
+                  place: l.commute.place,
+                })}
+              </p>
+            )}
             {l.handover && <p>Handover {handoverLabel(l.handover)}</p>}
             {nearby && <p>{nearby}</p>}
             {l.verifiedAt && (

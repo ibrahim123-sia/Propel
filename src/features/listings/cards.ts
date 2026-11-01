@@ -53,6 +53,8 @@ export type ListingCardData = {
   handover: string | null;
   projectName: string | null;
   isFeatured: boolean;
+  /** With a commute filter (11 §9): minutes to the chosen place, measured or estimated. */
+  commute?: { minutes: number; mode: "drive" | "walk"; place: string; estimate: boolean };
 };
 
 /** Cards for these listing ids, in the order given. Unpublished or archived ones are left out. */

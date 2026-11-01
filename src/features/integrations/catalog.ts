@@ -24,7 +24,8 @@ export const keyInfo: Record<SecretKey, { label: string; help?: string }> = {
     help: "From Resend -> Webhooks (it starts with whsec_).",
   },
   google_oauth_client_secret: { label: "OAuth client secret" },
-  ai_api_key: { label: "API key" },
+  ai_api_key: { label: "API key", help: "For the provider chosen above." },
+  ai_fallback_api_key: { label: "Backup provider API key" },
   ai_gateway_token: {
     label: "AI Gateway token",
     help: "Only if your gateway requires authentication.",

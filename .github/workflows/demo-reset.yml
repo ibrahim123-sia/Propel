@@ -1,0 +1,71 @@
+name: Demo reset
+
+# 16 §3: the public demo goes back to the seed every night, with the market an admin chose
+# ("Switch demo market" on the System page records it). Runs only when the demo's secrets
+# exist. Needs: DEMO_DATABASE_URL, DEMO_PASSWORD, DEMO_APP_URL, DEMO_INTERNAL_JOB_SECRET,
+# DEMO_BETTER_AUTH_SECRET, DEMO_SECRETS_ENCRYPTION_KEY, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+# R2_SECRET_ACCESS_KEY (an R2 API token with read and write on the demo's media bucket) and
+# the variable DEMO_R2_BUCKET.
+
+on:
+  schedule:
+    - cron: "30 22 * * *" # 02:30 in Dubai
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: "Load this preset (empty: the one requested on the System page, else the current one)"
+        required: false
+        type: choice
+        options: ["", "haven-dune", "us-demo"]
+
+concurrency:
+  group: demo-reset
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    name: Reset the demo database
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_DEMO: ${{ secrets.DEMO_DATABASE_URL != '' }}
+    steps:
+      - name: Demo not set up
+        if: env.HAS_DEMO != 'true'
+        run: echo "::notice::DEMO_DATABASE_URL is not set; nothing to reset."
+      - uses: actions/checkout@v5
+        if: env.HAS_DEMO == 'true'
+      - uses: pnpm/action-setup@v4
+        if: env.HAS_DEMO == 'true'
+      - uses: actions/setup-node@v5
+        if: env.HAS_DEMO == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: env.HAS_DEMO == 'true'
+      - name: Migrate, then reseed
+        if: env.HAS_DEMO == 'true'
+        env:
+          PROPEL_ENV: staging
+          DEMO_MODE: "true"
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+          DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+          APP_URL: ${{ secrets.DEMO_APP_URL }}
+          BETTER_AUTH_URL: ${{ secrets.DEMO_APP_URL }}
+          INTERNAL_JOB_SECRET: ${{ secrets.DEMO_INTERNAL_JOB_SECRET }}
+          BETTER_AUTH_SECRET: ${{ secrets.DEMO_BETTER_AUTH_SECRET }}
+          SECRETS_ENCRYPTION_KEY: ${{ secrets.DEMO_SECRETS_ENCRYPTION_KEY }}
+          STORAGE_DRIVER: r2
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.DEMO_R2_BUCKET || 'propel-media-staging' }}
+          JOBS_DRIVER: manual
+          PRESET: ${{ inputs.preset }}
+        run: |
+          pnpm db:migrate
+          if [ -n "$PRESET" ]; then pnpm demo:reset --preset="$PRESET"; else pnpm demo:reset; fi

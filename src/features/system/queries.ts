@@ -184,9 +184,26 @@ export async function integrationStatus(db?: DbOrTx): Promise<IntegrationState[]
     line(
       "AI provider",
       integrations.ai.enabled,
-      integrations.ai.provider === "mock" ? null : key("ai_api_key"),
+      integrations.ai.provider === "mock"
+        ? null
+        : // A key from the environment (XAI_API_KEY, ...) counts as set (features/ai/config).
+          !key("ai_api_key").isSet && envAiKey(integrations.ai.provider)
+          ? null
+          : key("ai_api_key"),
     ),
   ];
+}
+
+function envAiKey(provider: "xai" | "groq" | "gemini" | "anthropic"): boolean {
+  const e = env();
+  return Boolean(
+    {
+      xai: e.XAI_API_KEY,
+      groq: e.GROQ_API_KEY,
+      gemini: e.GEMINI_API_KEY,
+      anthropic: e.ANTHROPIC_API_KEY,
+    }[provider],
+  );
 }
 
 /** Runtime facts for the System page header. */

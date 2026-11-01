@@ -21,4 +21,25 @@ export const sectionsText = {
     noHomes: "New homes coming soon",
   },
   projects: { handover: "Handover", from: "from", progress: (n: number) => `${n}% built` },
+  tools: {
+    label: "Tools",
+    items: {
+      mortgage: {
+        title: "Mortgage calculator",
+        text: "Monthly payments, the deposit and what you can borrow.",
+      },
+      rental_returns: {
+        title: "Rental returns",
+        text: "Yield, cash flow and returns for an investment home.",
+      },
+      compare: { title: "Compare homes", text: "Up to four homes side by side." },
+      valuation: { title: "Free valuation", text: "What your home could sell or rent for." },
+      list_property: { title: "List your property", text: "Sell or rent it out with us." },
+    },
+  },
+  aiTeaser: {
+    prompts: "Example questions",
+    previewLabel: "Example chat",
+    ask: "Ask a question",
+  },
 } as const;

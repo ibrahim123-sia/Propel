@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { queueIdleSummaries } from "@/features/ai/assistant/summary";
+import { TOPICS_JOB } from "@/features/ai/topics";
 import { queueEmbeddingBackfill } from "@/features/ai/embeddings";
 import { runAlertDigest } from "@/features/alerts/jobs";
 import { jobRuns } from "@/db/schema/system";
@@ -13,7 +14,11 @@ import { refreshStalePois, refreshStaleProjectPois } from "@/features/pois/dista
 import { dailyListingMaintenance } from "@/features/properties/maintenance";
 import { CRAWL_JOB } from "@/features/seo/crawl-job";
 import { pruneNotFound } from "@/features/seo/not-found-log";
+import { queueDailySummary } from "@/features/reports/daily";
+import { queueNightlyDemoReset } from "@/features/demo/reset";
 import { queueWeeklyReport } from "@/features/reports/weekly";
+import { remindExchangeRates } from "@/features/system/alerts";
+import { runRetention } from "@/features/system/retention";
 import { enqueue } from "./enqueue";
 import { loadSettings } from "@/features/settings/queries";
 import { queueViewingReminders } from "@/features/viewings/notify";
@@ -137,8 +142,32 @@ export const cronTasks: CronTask[] = [
     due: at(0, 15),
     run: async () => dailyListingMaintenance(await getDb()),
   },
+  // Daily summary to admins (13 §3): checked every 5 minutes, sent once a day from the time
+  // in Settings -> Notifications.
+  {
+    name: "reports.daily-summary",
+    schedule: "every 5 minutes (sends once a day from the time in Settings -> Notifications)",
+    due: every(5),
+    run: async () => queueDailySummary(await getDb()),
+    quiet: true,
+  },
   // Daily 02:00-03:30: clean-ups and repairs.
   { name: "rate-limits.purge", schedule: "daily at 02:00", due: at(2), run: () => purgeExpired() },
+  // 16 §3: the public demo goes back to the seed every night (Node hosts; on Cloudflare the
+  // GitHub Action does it). Nothing happens unless DEMO_MODE=true.
+  {
+    name: "demo.reset",
+    schedule: "daily at 02:30 (demo builds only)",
+    due: at(2, 30),
+    run: async () => queueNightlyDemoReset(await getDb()),
+  },
+  // 04 §11, 14 §3: old guest chats, lost leads past their months, visitor events after 180 days.
+  {
+    name: "data-retention",
+    schedule: "daily at 02:10",
+    due: at(2, 10),
+    run: async () => runRetention(await getDb()),
+  },
   {
     name: "seo.not-found-prune",
     schedule: "daily at 03:15",
@@ -157,6 +186,15 @@ export const cronTasks: CronTask[] = [
     schedule: "daily at 03:30",
     due: at(3, 30),
     run: async () => recountAllMediaUsage(await getDb()),
+  },
+  // Weekly (10 §5): the last seven days of chat questions grouped into topics.
+  {
+    name: "ai.chat-topics",
+    schedule: "weekly on Monday at 05:00",
+    due: (t) => t.weekday === 1 && at(5)(t),
+    run: async () => ({
+      queued: (await enqueue(TOPICS_JOB, {}, { dedupeKey: TOPICS_JOB, maxAttempts: 2 })) !== null,
+    }),
   },
   // Weekly: the SEO report's broken-link check (a queue job: it can take a few minutes).
   {
@@ -189,6 +227,13 @@ export const cronTasks: CronTask[] = [
     schedule: "monthly on the 1st at 03:00",
     due: (t) => t.day === 1 && at(3)(t),
     run: async () => computeLastMonthPriceStats(await getDb()),
+  },
+  // Monthly (13 §2): a reminder when the visitor currencies' display rates are a month old.
+  {
+    name: "rates.reminder",
+    schedule: "monthly on the 1st at 09:00",
+    due: (t) => t.day === 1 && at(9)(t),
+    run: async () => remindExchangeRates(await getDb()),
   },
   // Monthly: distances to nearby places older than 90 days are measured again (07 §4.7).
   {

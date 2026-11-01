@@ -90,6 +90,15 @@ describe("search filters in the URL", () => {
     expect(decodePolygon("abc")).toBeNull();
     expect(decodePolygon(encodePolygon(ring.slice(0, 2)))).toBeNull();
   });
+
+  it("reads and writes a commute limit; anything else is dropped", () => {
+    const poi = "0192f000-0000-7000-8000-0000000000aa";
+    const f = parseSearch({ commute: `${poi}.walk.15` });
+    expect(f.commute).toEqual({ poi, mode: "walk", minutes: 15 });
+    expect(searchQuery(f)).toBe(`commute=${poi}.walk.15`);
+    for (const bad of [`${poi}.bike.15`, `${poi}.drive.7`, `${poi}.drive.90`, "nope.drive.10"])
+      expect(parseSearch({ commute: bad }).commute).toBeNull();
+  });
 });
 
 describe("prices in the visitor's currency", () => {

@@ -459,6 +459,47 @@ describe("reports (09 §7)", () => {
     });
     const cost = after.data.tables[0]!.rows.find((r) => r.key === "cost")!;
     expect(cost.cells.value).toBe("USD 2.00");
+
+    // Answers to visitor messages: one after a search, one without, one flagged as bad.
+    const asked = newId();
+    await db.insert(messages).values([
+      {
+        id: asked,
+        conversationId: conv!.id,
+        direction: "in",
+        sender: "customer",
+        body: "Two beds in the Marina?",
+        createdAt: new Date("2026-10-03T06:00:00Z"),
+      },
+      {
+        conversationId: conv!.id,
+        direction: "out",
+        sender: "ai",
+        body: "Here are three homes.",
+        inReplyTo: asked,
+        toolCalls: [{ tool: "search_listings", summary: "3 homes" }],
+        createdAt: new Date("2026-10-03T06:00:05Z"),
+      },
+      {
+        conversationId: conv!.id,
+        direction: "out",
+        sender: "ai",
+        body: "Would you like to buy or rent?",
+        inReplyTo: asked,
+        flaggedAt: new Date("2026-10-04T06:00:00Z"),
+        flagNote: "Asked again what they had said",
+        createdAt: new Date("2026-10-03T06:01:00Z"),
+      },
+    ]);
+    const answered = await buildReport(db, "ai", week, { now });
+    expect(kpis(answered.data)).toMatchObject({
+      grounded: { value: 0.5, format: "percent" },
+      flagged: { value: 1 },
+    });
+    const row = (key: string) =>
+      answered.data.tables[0]!.rows.find((r) => r.key === key)!.cells.value;
+    expect(row("answers")).toBe(2);
+    expect(row("grounded")).toBe("1 (50%)");
   });
 
   it("exports CSV and PDF for admins only, and writes the audit log", async () => {

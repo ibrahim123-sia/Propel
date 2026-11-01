@@ -212,9 +212,9 @@ function pageGallery(d: BrochureData, src: ImageSource): string {
 </section>`;
 }
 
-function planTable(d: BrochureData): string {
+function planTable(d: BrochureData, maxRows = 9): string {
   if (!d.plan) return "";
-  const rows = d.plan.rows.slice(0, 9);
+  const rows = d.plan.rows.slice(0, maxRows);
   const withAmounts = rows.some((r) => r.amount);
   return `<div class="card">
     <div class="plan-head"><h3>${esc(t.pdf.plan)}</h3>${d.plan.label ? `<span class="chip accent">${esc(d.plan.label)}</span>` : ""}</div>
@@ -381,6 +381,45 @@ ${pageCover(d, src)}
 ${pageGallery(d, src)}
 ${pagePlans(d, src)}
 ${pageLocation(d, src)}
+</body>
+</html>`;
+}
+
+/**
+ * "Download payment schedule" (06 §5.8, 07 §5): one page with the logo, the home or project,
+ * its price and every step of the payment plan with amounts. Null when there is no plan.
+ */
+export function paymentScheduleHtml(
+  d: BrochureData,
+  src: ImageSource,
+  options: { webFonts?: boolean; generatedOn: string },
+): string | null {
+  if (!d.plan) return null;
+  const fonts =
+    options.webFonts === false
+      ? ""
+      : `<link rel="stylesheet" href="${esc(fontsHref(d.branding.fontDisplay, d.branding.fontBody))}">`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${esc(`${t.pdf.schedule} · ${d.reference ? `${d.reference} · ` : ""}${d.title}`)}</title>
+<meta name="author" content="${esc(d.agency.name)}">
+${fonts}
+<style>${styles(d)}</style>
+</head>
+<body data-agency="${esc(d.agency.name)}">
+<section class="page" data-page="1">
+  <div class="top">${logo(d, src)}<span class="chip">${esc(t.pdf.schedule)}</span></div>
+  <div class="title">
+    <h1>${esc(d.title)}</h1>
+    ${d.subtitle ? `<p class="muted">${esc(d.subtitle)}</p>` : ""}
+  </div>
+  <div class="price"><strong>${esc(d.priceText)}</strong>${d.reference ? `<span class="muted">${esc(d.reference)}</span>` : ""}</div>
+  ${planTable(d, 40)}
+  <p class="small muted">${esc(t.pdf.scheduleNote.replace("{date}", options.generatedOn))}</p>
+  ${footer(d, 1)}
+</section>
 </body>
 </html>`;
 }

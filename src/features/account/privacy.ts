@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import type { Db } from "@/db/client";
+import type { Db, DbOrTx } from "@/db/client";
 import { currentAgencyId } from "@/db/schema/_common";
 import { users } from "@/db/schema/auth";
 import {
@@ -22,7 +22,10 @@ import {
 } from "@/db/schema/customer";
 import { projects } from "@/db/schema/projects";
 import { properties } from "@/db/schema/properties";
+import { sendTemplate } from "@/features/leads/process";
+import { loadSettings } from "@/features/settings/queries";
 import { writeAudit } from "@/lib/audit";
+import { localDateString } from "@/lib/local-date";
 import { customerContactIds } from "./link";
 
 /** "Download my data" (12 §2 Privacy, 14 §3): everything kept about the customer, as JSON. */
@@ -156,6 +159,65 @@ export async function exportCustomerData(db: Db, userId: string) {
 }
 
 /**
+ * Takes the person out of what the agency keeps (14 §3): the contact's name, email, phone and
+ * notes, their own words in lead timelines, chats and viewing feedback, and the AI summaries
+ * written from them. Used by account deletion and by the retention job for old lost leads.
+ */
+export async function anonymiseContacts(tx: DbOrTx, contactIds: string[], name: string) {
+  if (contactIds.length === 0) return;
+  await tx
+    .update(contacts)
+    .set({
+      name,
+      email: null,
+      phone: null,
+      whatsapp: null,
+      nationality: null,
+      notes: null,
+      tags: [],
+      marketingConsent: false,
+      marketingConsentAt: null,
+      userId: null,
+    })
+    .where(inArray(contacts.id, contactIds));
+  const leadIds = (
+    await tx.select({ id: leads.id }).from(leads).where(inArray(leads.contactId, contactIds))
+  ).map((l) => l.id);
+  if (leadIds.length) {
+    await tx
+      .update(leadEvents)
+      .set({ body: null, meta: sql`${leadEvents.meta} - 'details'` })
+      .where(and(inArray(leadEvents.leadId, leadIds), eq(leadEvents.actorType, "customer")));
+    await tx
+      .update(leads)
+      .set({ requirements: sql`${leads.requirements} - 'notes'`, aiSummary: null })
+      .where(inArray(leads.id, leadIds));
+  }
+  await tx
+    .update(viewings)
+    .set({ notes: null, feedbackText: null, visitorTimeZone: null })
+    .where(inArray(viewings.contactId, contactIds));
+  const conversationIds = (
+    await tx
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(inArray(conversations.contactId, contactIds))
+  ).map((c) => c.id);
+  if (conversationIds.length) {
+    await tx
+      .update(messages)
+      .set({ body: "[removed]", attachments: [] })
+      .where(
+        and(inArray(messages.conversationId, conversationIds), eq(messages.sender, "customer")),
+      );
+    await tx
+      .update(conversations)
+      .set({ aiSummary: null })
+      .where(inArray(conversations.id, conversationIds));
+  }
+}
+
+/**
  * "Delete my account" (12 §2, 14 §3): saved data goes with the account; inquiries, tours and
  * chats the agency keeps lose the person (name, email, phone and their own words), so
  * nothing in them points back to the customer. Audited.
@@ -169,53 +231,7 @@ export async function deleteCustomerAccount(db: Db, userId: string): Promise<voi
   if (!user || user.role !== "customer") return;
   const contactIds = await customerContactIds(db, userId);
   await db.transaction(async (tx) => {
-    if (contactIds.length) {
-      await tx
-        .update(contacts)
-        .set({
-          name: "Deleted customer",
-          email: null,
-          phone: null,
-          whatsapp: null,
-          nationality: null,
-          notes: null,
-          tags: [],
-          marketingConsent: false,
-          marketingConsentAt: null,
-          userId: null,
-        })
-        .where(inArray(contacts.id, contactIds));
-      const leadIds = (
-        await tx.select({ id: leads.id }).from(leads).where(inArray(leads.contactId, contactIds))
-      ).map((l) => l.id);
-      if (leadIds.length) {
-        await tx
-          .update(leadEvents)
-          .set({ body: null, meta: sql`${leadEvents.meta} - 'details'` })
-          .where(and(inArray(leadEvents.leadId, leadIds), eq(leadEvents.actorType, "customer")));
-        await tx
-          .update(leads)
-          .set({ requirements: sql`${leads.requirements} - 'notes'`, aiSummary: null })
-          .where(inArray(leads.id, leadIds));
-      }
-      await tx
-        .update(viewings)
-        .set({ notes: null, feedbackText: null, visitorTimeZone: null })
-        .where(inArray(viewings.contactId, contactIds));
-      const conversationIds = (
-        await tx
-          .select({ id: conversations.id })
-          .from(conversations)
-          .where(inArray(conversations.contactId, contactIds))
-      ).map((c) => c.id);
-      if (conversationIds.length)
-        await tx
-          .update(messages)
-          .set({ body: "[removed]", attachments: [] })
-          .where(
-            and(inArray(messages.conversationId, conversationIds), eq(messages.sender, "customer")),
-          );
-    }
+    await anonymiseContacts(tx, contactIds, "Deleted customer");
     await tx.update(visitors).set({ userId: null }).where(eq(visitors.userId, userId));
     await tx
       .delete(newsletterSubscribers)
@@ -236,4 +252,35 @@ export async function deleteCustomerAccount(db: Db, userId: string): Promise<voi
     // notification choices go with the user row (cascade).
     await tx.delete(users).where(eq(users.id, userId));
   });
+  // 13 §1 "account deleted": the confirmation goes to the address the account had.
+  const general = await loadSettings("general", db);
+  await sendTemplate(
+    db,
+    "account.deleted",
+    [user.email],
+    { agency: general.agencyName, url: siteUrl() },
+    siteUrl(),
+    { type: "account_deleted", id: userId },
+  );
+}
+
+const siteUrl = () => (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+
+/** 13 §1 "data export ready": each download is confirmed by email, once a day at most. */
+export async function notifyDataExport(db: Db, userId: string): Promise<void> {
+  const [user] = await db
+    .select({ email: users.email, name: users.name })
+    .from(users)
+    .where(eq(users.id, userId));
+  if (!user) return;
+  const general = await loadSettings("general", db);
+  const url = `${siteUrl()}/account/privacy`;
+  await sendTemplate(
+    db,
+    "account.export_ready",
+    [user.email],
+    { name: user.name, agency: general.agencyName, url },
+    url,
+    { type: "data_export", id: `${userId}:${localDateString(new Date(), general.timeZone)}` },
+  );
 }

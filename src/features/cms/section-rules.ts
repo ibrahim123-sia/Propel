@@ -84,6 +84,9 @@ export function sectionProblems(s: Section): SectionProblem[] {
     case "cta":
       need(!empty(s.props.heading), "heading", "Add the heading.");
       break;
+    case "ai_teaser":
+      need(!empty(s.props.heading), "heading", "Add the heading.");
+      break;
     case "video":
       need(!empty(s.props.url), "url", "Add the video link.");
       break;
@@ -93,6 +96,7 @@ export function sectionProblems(s: Section): SectionProblem[] {
     case "custom_html":
       need(!empty(s.props.html), "html", "Add the HTML.");
       break;
+    case "tools":
     case "contact_block":
     case "form":
     case "map":
@@ -142,6 +146,8 @@ export function starterSection(type: SectionType, heading = ""): StoredSection {
     developer_logos: { source: "all", count: 8 },
     blog_posts: { source: "latest", count: 3 },
     cta: { heading, buttons: [] },
+    tools: {},
+    ai_teaser: { heading, prompts: [] },
     contact_block: { showDetails: true, showMap: true, showForm: true },
     form: { heading, formType: "contact" },
     video: { url: "" },

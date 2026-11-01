@@ -17,6 +17,8 @@ export interface WhatsappClient {
     template: { name: string; language: string; parameters: string[] },
   ): Promise<WaSent>;
   sendImage(to: string, image: { link: string; caption: string }): Promise<WaSent>;
+  /** A received photo, file or voice note, by its media id (null when it is gone). */
+  downloadMedia?(mediaId: string): Promise<{ bytes: Uint8Array; mime: string } | null>;
 }
 
 /** A refused send. `permanent` errors (bad number, template not approved) are not retried. */
@@ -96,5 +98,25 @@ function graphClient(phoneNumberId: string, token: string): WhatsappClient {
         },
       }),
     sendImage: (to, image) => post({ to, type: "image", image: image }),
+    // Two steps: the media id gives a short-lived URL, which needs the token too.
+    async downloadMedia(mediaId) {
+      const auth = { Authorization: `Bearer ${token}` };
+      const meta = await fetch(
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${encodeURIComponent(mediaId)}`,
+        { headers: auth, signal: AbortSignal.timeout(15_000) },
+      );
+      if (meta.status === 404) return null;
+      if (!meta.ok)
+        throw new WhatsappApiError(`WhatsApp answered ${meta.status}`, meta.status, false);
+      const info = (await meta.json()) as { url?: string; mime_type?: string };
+      if (!info.url) return null;
+      const file = await fetch(info.url, { headers: auth, signal: AbortSignal.timeout(30_000) });
+      if (!file.ok)
+        throw new WhatsappApiError(`WhatsApp answered ${file.status}`, file.status, false);
+      return {
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        mime: info.mime_type ?? file.headers.get("content-type") ?? "audio/ogg",
+      };
+    },
   };
 }

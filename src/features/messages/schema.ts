@@ -127,6 +127,10 @@ export const sampleValues: Record<string, string> = {
   estimate:
     "Our first estimate is AED 2,350,000 – AED 2,600,000, based on 6 similar homes in Dubai Marina. It comes from homes we have listed and is not a formal valuation.",
   purpose: "sell",
+  integration: "Email (Resend)",
+  error: "Resend answered 401: API key is invalid",
+  updated: "1 September 2026",
+  currencies: "USD, EUR, GBP",
 };
 
 /**
