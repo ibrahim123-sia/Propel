@@ -157,7 +157,9 @@ test("commute filter: homes within a drive of one of the agency's places", async
   const place = rows[0] as { id: string; name: string };
   await page.goto(`/buy?commute=${place.id}.drive.30`);
   await expect(page.getByText(`Within 30 min drive of ${place.name}`).first()).toBeVisible();
-  const line = page.getByText(new RegExp(`min drive to ${place.name}`)).first();
+  // Place names can hold regex characters ("Dubai International Financial Centre (DIFC)").
+  const name = place.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const line = page.getByText(new RegExp(`min drive to ${name}`)).first();
   await expect(line).toBeVisible();
   const minutes = Number((await line.textContent())!.match(/(\d+) min/)![1]);
   expect(minutes).toBeLessThanOrEqual(30);
