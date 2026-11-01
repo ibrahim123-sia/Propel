@@ -36,11 +36,11 @@ jobs:
       - name: Demo not set up
         if: env.HAS_DEMO != 'true'
         run: echo "::notice::DEMO_DATABASE_URL is not set; nothing to reset."
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: env.HAS_DEMO == 'true'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: env.HAS_DEMO == 'true'
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         if: env.HAS_DEMO == 'true'
         with:
           node-version: 24
