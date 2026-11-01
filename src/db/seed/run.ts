@@ -50,6 +50,7 @@ import {
   type Picture,
 } from "./images";
 import { seedPages } from "./pages";
+import { loadRealPhotos } from "./real-photos";
 import { seedContent } from "./content";
 import { seedCrm } from "./crm";
 import { seedViewings } from "./viewings";
@@ -130,7 +131,7 @@ export type SeedResult = {
 async function storePicture(
   db: Db,
   pic: Picture,
-  meta: { fileName: string; alt: string; folder: string },
+  meta: { fileName: string; alt: string; folder: string; caption?: string | null },
 ): Promise<string> {
   const ext = pic.mime === "image/png" ? "png" : "jpg";
   const key = publicKey(meta.fileName, ext);
@@ -147,6 +148,7 @@ async function storePicture(
       width: pic.width,
       height: pic.height,
       alt: meta.alt,
+      caption: meta.caption ?? null,
       folder: meta.folder,
       dominantColor: pic.color,
     })
@@ -372,27 +374,58 @@ export async function seedPreset(
 
   // Pictures ------------------------------------------------------------------------------
   progress("Pictures");
-  type Shot = { id: string; kind: "living" | "bedroom" | "kitchen" | "tower" | "villa" | "pool" };
+  type Shot = {
+    id: string;
+    kind:
+      | "living"
+      | "bedroom"
+      | "kitchen"
+      | "bathroom"
+      | "tower"
+      | "villa"
+      | "pool"
+      | "office"
+      | "land";
+  };
   const shots: Shot[] = [];
   const alts: Record<Shot["kind"], string> = {
     living: "Living room with floor-to-ceiling windows",
     bedroom: "Bedroom with a large window",
     kitchen: "Fitted kitchen",
+    bathroom: "Bathroom",
     tower: "Building exterior",
     villa: "Villa with garden and pool",
     pool: "Swimming pool",
+    office: "Office space",
+    land: "Plot of land",
   };
+  // Real photos when `pnpm seed:photos` downloaded them; drawn scenes for any kind without.
+  const real = await loadRealPhotos();
+  for (const [kind, photos] of real) {
+    if (!(kind in alts)) continue;
+    for (const [i, photo] of photos.entries())
+      shots.push({
+        id: await storePicture(db, photo, {
+          fileName: `${kind}-${i + 1}`,
+          alt: photo.alt ?? alts[kind as Shot["kind"]],
+          caption: photo.credit,
+          folder: "listings",
+        }),
+        kind: kind as Shot["kind"],
+      });
+  }
   for (const [i, p] of palettes.entries()) {
-    const set: Array<[Shot["kind"], Promise<Picture>]> = [
-      ["living", livingRoom(p, i * 11 + 3)],
-      ["bedroom", bedroom(p, i * 7 + 5)],
-      ["kitchen", kitchen(p)],
-      ["tower", tower(p, i * 13 + 1)],
-      ["villa", villa(p, i * 3 + 2)],
-      ["pool", pool(p)],
+    const set: Array<[Shot["kind"], () => Promise<Picture>]> = [
+      ["living", () => livingRoom(p, i * 11 + 3)],
+      ["bedroom", () => bedroom(p, i * 7 + 5)],
+      ["kitchen", () => kitchen(p)],
+      ["tower", () => tower(p, i * 13 + 1)],
+      ["villa", () => villa(p, i * 3 + 2)],
+      ["pool", () => pool(p)],
     ];
-    for (const [kind, pic] of set) {
-      const id = await storePicture(db, await pic, {
+    for (const [kind, draw] of set) {
+      if (real.has(kind)) continue;
+      const id = await storePicture(db, await draw(), {
         fileName: `${kind}-${i + 1}`,
         alt: alts[kind],
         folder: "listings",
@@ -595,18 +628,30 @@ export async function seedPreset(
     const villaLike = shape === "house";
     const commercial = shape === "commercial" || shape === "shop";
     const plot = shape === "plot";
+    const has = (kind: Shot["kind"]) => shots.some((s) => s.kind === kind);
+    // The cover first: the outside of the building or house (or the plot), then the rooms.
+    const outside: Shot["kind"] =
+      plot && has("land") ? "land" : villaLike || plot ? "villa" : "tower";
     const kinds: Array<Shot["kind"]> = plot
-      ? ["villa", "pool"]
+      ? has("land")
+        ? ["land"]
+        : ["villa", "pool"]
       : villaLike
-        ? ["villa", "living", "bedroom", "kitchen", "pool"]
+        ? ["living", "bedroom", "kitchen", "bathroom", "pool", "villa"]
         : commercial
-          ? ["tower", "living"]
-          : ["tower", "living", "bedroom", "kitchen", "pool"];
-    const photoIds = r.some(
-      shots.filter((s) => kinds.includes(s.kind)).map((s) => s.id),
-      plot ? 6 : 6,
-      plot ? 7 : 12,
-    );
+          ? has("office")
+            ? ["office", "tower"]
+            : ["tower", "living"]
+          : ["living", "bedroom", "kitchen", "bathroom", "pool", "tower"];
+    const cover = r.pick(shots.filter((s) => s.kind === outside).map((s) => s.id));
+    const photoIds = [
+      cover,
+      ...r.some(
+        shots.filter((s) => kinds.includes(s.kind) && s.id !== cover).map((s) => s.id),
+        5,
+        plot ? 6 : 11,
+      ),
+    ];
     const facilityPick = plot ? [] : r.some(facilityIds, 5, 9);
     const description = listingDescription(
       title,

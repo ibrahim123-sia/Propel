@@ -25,6 +25,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx --import ./scripts/register-server-only.mjs src/db/seed/index.ts",
     "db:reset": "tsx --import ./scripts/register-server-only.mjs scripts/db-reset.ts",
+    "seed:photos": "tsx scripts/seed-photos.ts",
     "demo:reset": "tsx --import ./scripts/register-server-only.mjs scripts/demo-reset.ts",
     "admin:create": "tsx --import ./scripts/register-server-only.mjs scripts/create-admin.ts",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
