@@ -66,7 +66,7 @@ export type AiStreamEvent =
   | { type: "done"; response: AiResponse };
 
 /** The real model providers Settings -> Integrations offers. */
-export const aiProviderNames = ["xai", "gemini", "anthropic"] as const;
+export const aiProviderNames = ["xai", "groq", "gemini", "anthropic"] as const;
 export type AiProviderName = (typeof aiProviderNames)[number];
 
 export interface AiProvider {

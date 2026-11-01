@@ -4,9 +4,11 @@ import type { AiFeature } from "@/db/schema/ai";
 import { loadSettings } from "@/features/settings/queries";
 import type { SettingsOf } from "@/features/settings/schema";
 import { getSecret } from "@/features/settings/secrets";
+import { env } from "@/lib/env";
 import { AnthropicProvider } from "./providers/anthropic";
 import { FallbackProvider } from "./providers/fallback";
 import { GeminiProvider } from "./providers/gemini";
+import { GroqProvider } from "./providers/groq";
 import { MockProvider } from "./providers/mock";
 import { XaiProvider } from "./providers/xai";
 import type { AiProvider, AiProviderName } from "./types";
@@ -106,12 +108,33 @@ export function setProviderOverride(provider: AiProvider | null): void {
   g.__propelAiProviderOverride = provider;
 }
 
+/** The key saved in Settings -> Integrations for this slot, else the provider's env key. */
+export async function aiKey(
+  slot: "ai_api_key" | "ai_fallback_api_key",
+  provider: AiProviderName,
+  db?: DbOrTx,
+): Promise<string | null> {
+  const saved = await getSecret(slot, db);
+  if (saved) return saved;
+  const e = env();
+  return (
+    {
+      xai: e.XAI_API_KEY,
+      groq: e.GROQ_API_KEY,
+      gemini: e.GEMINI_API_KEY,
+      anthropic: e.ANTHROPIC_API_KEY,
+    }[provider] || null
+  );
+}
+
 type Gateway = { accountId: string; name: string; token: string | null } | null;
 
 function makeProvider(name: AiProviderName, apiKey: string, gateway: Gateway): AiProvider {
   switch (name) {
     case "xai":
       return new XaiProvider({ apiKey, gateway });
+    case "groq":
+      return new GroqProvider({ apiKey, gateway });
     case "gemini":
       return new GeminiProvider({ apiKey, gateway });
     case "anthropic":
@@ -127,8 +150,8 @@ export async function providerFor(config: AiConfig, db?: DbOrTx): Promise<AiProv
   if (g.__propelAiProviderOverride) return g.__propelAiProviderOverride;
   if (config.provider === "mock") return new MockProvider();
   const [apiKey, fallbackKey, gatewayToken] = await Promise.all([
-    getSecret("ai_api_key", db),
-    config.fallback ? getSecret("ai_fallback_api_key", db) : Promise.resolve(null),
+    aiKey("ai_api_key", config.provider, db),
+    config.fallback ? aiKey("ai_fallback_api_key", config.fallback.provider, db) : null,
     config.gateway ? getSecret("ai_gateway_token", db) : Promise.resolve(null),
   ]);
   const gateway = config.gateway ? { ...config.gateway, token: gatewayToken } : null;

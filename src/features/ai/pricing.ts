@@ -58,6 +58,11 @@ export const modelPrices: Record<string, ModelPrice> = {
     cacheWrite: 0,
     long: { overTokens: 200_000, input: 2, output: 4 },
   },
+  // GroqCloud on-demand (third-party listings, 2026-11; cached input at half price).
+  "openai/gpt-oss-120b": { input: 0.15, output: 0.6, cacheRead: 0.075, cacheWrite: 0 },
+  "openai/gpt-oss-20b": { input: 0.075, output: 0.3, cacheRead: 0.0375, cacheWrite: 0 },
+  "llama-3.3-70b-versatile": { input: 0.59, output: 0.79, cacheRead: 0.59, cacheWrite: 0 },
+  "llama-3.1-8b-instant": { input: 0.05, output: 0.08, cacheRead: 0.05, cacheWrite: 0 },
   "gemini-4-argon": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 0 },
   "gemini-3.8-flash": { input: 0.75, output: 3.75, cacheRead: 0.075, cacheWrite: 0 },
   "gemini-3.6-flash": { input: 0.75, output: 3.75, cacheRead: 0.075, cacheWrite: 0 },

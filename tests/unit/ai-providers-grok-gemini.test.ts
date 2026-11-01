@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FallbackProvider } from "@/features/ai/providers/fallback";
 import { GeminiProvider, geminiBaseUrl, geminiRequestBody } from "@/features/ai/providers/gemini";
+import { GroqProvider, groqBaseUrl, groqRequestBody } from "@/features/ai/providers/groq";
 import { MockProvider, resetMock, scriptMockReplies } from "@/features/ai/providers/mock";
 import { XaiProvider, xaiBaseUrl, xaiRequestBody } from "@/features/ai/providers/xai";
 import { priceFor } from "@/features/ai/pricing";
@@ -393,6 +394,130 @@ describe("Gemini provider", () => {
     expect(done.response.content).toEqual([
       { type: "text", text: "Hi there" },
       { type: "tool_use", id: "fc1", name: "search_listings", input: {} },
+    ]);
+    expect(done.response.usage.outputTokens).toBe(4);
+  });
+});
+
+describe("Groq provider (OpenAI-compatible Chat Completions)", () => {
+  it("maps the conversation, tools and tool results to chat messages", () => {
+    const body = groqRequestBody(
+      request({ model: "openai/gpt-oss-120b", messages: toolRound, tools }),
+      false,
+    );
+    expect(body).toMatchObject({ model: "openai/gpt-oss-120b", max_completion_tokens: 1000 });
+    expect(body.messages).toEqual([
+      { role: "system", content: "You are a test." },
+      { role: "user", content: "Two beds in the Marina?" },
+      {
+        role: "assistant",
+        content: "Let me look.",
+        tool_calls: [
+          {
+            id: "call_1",
+            type: "function",
+            function: { name: "search_listings", arguments: '{"beds":2}' },
+          },
+        ],
+      },
+      { role: "tool", tool_call_id: "call_1", content: "<result>3 homes</result>" },
+    ]);
+    expect(body.tools).toEqual([
+      {
+        type: "function",
+        function: {
+          name: "search_listings",
+          description: "Search homes",
+          parameters: { type: "object", properties: { beds: { type: "integer" } } },
+        },
+      },
+    ]);
+    expect(groqBaseUrl(null)).toBe("https://api.groq.com/openai/v1");
+  });
+
+  it("answers with tool calls, and streams text and tool calls built from pieces", async () => {
+    const { fn, calls } = fakeFetch([
+      () =>
+        Response.json({
+          model: "openai/gpt-oss-120b",
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "c9",
+                    type: "function",
+                    function: { name: "search_listings", arguments: '{"beds":2}' },
+                  },
+                ],
+              },
+              finish_reason: "tool_calls",
+            },
+          ],
+          usage: {
+            prompt_tokens: 100,
+            completion_tokens: 20,
+            prompt_tokens_details: { cached_tokens: 60 },
+          },
+        }),
+      () =>
+        new Response(
+          streamOf(
+            dataEvents([
+              { choices: [{ delta: { content: "Hi " } }] },
+              { choices: [{ delta: { content: "there" } }] },
+              {
+                choices: [
+                  {
+                    delta: {
+                      tool_calls: [
+                        {
+                          index: 0,
+                          id: "c1",
+                          function: { name: "search_listings", arguments: '{"be' },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+              {
+                choices: [
+                  { delta: { tool_calls: [{ index: 0, function: { arguments: 'ds":2}' } }] } },
+                ],
+              },
+              {
+                choices: [{ delta: {}, finish_reason: "tool_calls" }],
+                x_groq: { usage: { prompt_tokens: 10, completion_tokens: 4 } },
+              },
+            ]),
+          ),
+        ),
+    ]);
+    const p = new GroqProvider({ apiKey: "gsk_test", fetch: fn });
+    const res = await p.complete(request({ model: "openai/gpt-oss-120b", tools }));
+    expect(calls[0]!.url).toBe("https://api.groq.com/openai/v1/chat/completions");
+    expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe(
+      "Bearer gsk_test",
+    );
+    expect(res).toEqual({
+      model: "openai/gpt-oss-120b",
+      content: [{ type: "tool_use", id: "c9", name: "search_listings", input: { beds: 2 } }],
+      stopReason: "tool_use",
+      usage: { inputTokens: 40, outputTokens: 20, cacheReadTokens: 60, cacheWriteTokens: 0 },
+    });
+    const events: AiStreamEvent[] = [];
+    for await (const e of p.stream(request({ model: "openai/gpt-oss-120b" }))) events.push(e);
+    expect(events.slice(0, 3)).toEqual([
+      { type: "text", text: "Hi " },
+      { type: "text", text: "there" },
+      { type: "tool_use_start", id: "c1", name: "search_listings" },
+    ]);
+    const done = events.at(-1) as Extract<AiStreamEvent, { type: "done" }>;
+    expect(done.response.content).toEqual([
+      { type: "text", text: "Hi there" },
+      { type: "tool_use", id: "c1", name: "search_listings", input: { beds: 2 } },
     ]);
     expect(done.response.usage.outputTokens).toBe(4);
   });

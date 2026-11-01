@@ -69,7 +69,7 @@ export async function errorMessage(res: Response): Promise<string> {
 /** A Cloudflare AI Gateway address for a provider, or null when no gateway is set. */
 export function gatewayBase(
   gateway: { accountId: string; name: string } | null | undefined,
-  provider: "anthropic" | "grok" | "google-ai-studio",
+  provider: "anthropic" | "grok" | "groq" | "google-ai-studio",
 ): string | null {
   return gateway?.accountId && gateway.name
     ? `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(gateway.accountId)}/${encodeURIComponent(gateway.name)}/${provider}`

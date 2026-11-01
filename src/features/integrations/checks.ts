@@ -5,6 +5,7 @@ import { getSecret } from "@/features/settings/secrets";
 import { recordIntegrationResult } from "@/features/system/alerts";
 import type { SecretKey, SettingsOf } from "@/features/settings/schema";
 import { aiProviderLabels } from "@/features/ai/provider-labels";
+import { aiKey } from "@/features/ai/config";
 import { gatewayBase } from "@/features/ai/providers/http";
 import type { AiProviderName } from "@/features/ai/types";
 import { testGoogleCalendar } from "./google-calendar/calendar";
@@ -41,8 +42,10 @@ async function check(
   key: SecretKey,
   db: DbOrTx | undefined,
   run: (secret: string) => Promise<CheckResult>,
+  /** Where the key comes from when none is saved (AI keys can live in the environment). */
+  lookup: () => Promise<string | null> = () => getSecret(key, db),
 ): Promise<CheckResult> {
-  const secret = await getSecret(key, db);
+  const secret = await lookup();
   if (!secret) return { ok: false, message: "Add the key first." };
   let result: CheckResult;
   try {
@@ -123,6 +126,9 @@ async function listModels(
   if (provider === "anthropic") {
     url = `${gatewayBase(gateway, "anthropic") ?? "https://api.anthropic.com"}/v1/models`;
     Object.assign(headers, { "x-api-key": key, "anthropic-version": "2023-06-01" });
+  } else if (provider === "groq") {
+    url = `${gatewayBase(gateway, "groq") ?? "https://api.groq.com/openai/v1"}/models`;
+    headers.authorization = `Bearer ${key}`;
   } else if (provider === "xai") {
     url = `${gatewayBase(gateway, "grok") ?? "https://api.x.ai"}/v1/models`;
     headers.authorization = `Bearer ${key}`;
@@ -154,20 +160,25 @@ async function testAiKey(
   ai: AiSettings,
   db: DbOrTx | undefined,
 ): Promise<CheckResult> {
-  return check(key, db, async (secret) => {
-    const listed = await listModels(provider, secret, ai, db);
-    if (!listed.ok) return listed;
-    const missing = [...new Set(models.filter(Boolean))].filter(
-      (m) => listed.models.size > 0 && !listed.models.has(m),
-    );
-    const via = ai.gatewayAccountId && ai.gatewayName ? " through the AI Gateway" : "";
-    return missing.length
-      ? {
-          ok: false,
-          message: `${aiProviderLabels[provider]}: connected, but these models are not available: ${missing.join(", ")}`,
-        }
-      : { ok: true, message: `${aiProviderLabels[provider]}: connected${via}` };
-  });
+  return check(
+    key,
+    db,
+    async (secret) => {
+      const listed = await listModels(provider, secret, ai, db);
+      if (!listed.ok) return listed;
+      const missing = [...new Set(models.filter(Boolean))].filter(
+        (m) => listed.models.size > 0 && !listed.models.has(m),
+      );
+      const via = ai.gatewayAccountId && ai.gatewayName ? " through the AI Gateway" : "";
+      return missing.length
+        ? {
+            ok: false,
+            message: `${aiProviderLabels[provider]}: connected, but these models are not available: ${missing.join(", ")}`,
+          }
+        : { ok: true, message: `${aiProviderLabels[provider]}: connected${via}` };
+    },
+    () => aiKey(key === "ai_api_key" ? "ai_api_key" : "ai_fallback_api_key", provider, db),
+  );
 }
 
 /** The provider, then the backup provider when one is set. */
