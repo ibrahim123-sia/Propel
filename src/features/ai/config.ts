@@ -129,6 +129,11 @@ export async function aiKey(
 
 type Gateway = { accountId: string; name: string; token: string | null } | null;
 
+/** A provider by name (the eval script builds one without settings). */
+export function createProvider(name: AiProviderName, apiKey: string): AiProvider {
+  return makeProvider(name, apiKey, null);
+}
+
 function makeProvider(name: AiProviderName, apiKey: string, gateway: Gateway): AiProvider {
   switch (name) {
     case "xai":
