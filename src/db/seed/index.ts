@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { backfillEmbeddings } from "@/features/ai/embeddings";
 import { closeDb, getDb } from "../client";
 import { demoPresets } from "./presets";
+import { withExtraListings } from "./extra-listings";
 import { seedPreset } from "./run";
 import type { SeedPreset } from "./types";
 
@@ -17,14 +18,22 @@ const { values } = parseArgs({
   options: {
     preset: { type: "string", default: "haven-dune" },
     reset: { type: "boolean", default: false },
+    /** Total listings: the preset's own, then more made in their image (extra-listings.ts). */
+    listings: { type: "string" },
   },
 });
 
-const preset = presets[values.preset!];
-if (!preset) {
+const chosen = presets[values.preset!];
+if (!chosen) {
   console.error(`Unknown preset "${values.preset}". Presets: ${Object.keys(presets).join(", ")}`);
   process.exit(1);
 }
+const total = values.listings ? Number(values.listings) : 0;
+if (values.listings && !(Number.isInteger(total) && total > 0 && total <= 1000)) {
+  console.error("--listings takes a whole number from 1 to 1000.");
+  process.exit(1);
+}
+const preset = total ? withExtraListings(chosen, total) : chosen;
 
 try {
   const db = await getDb();
