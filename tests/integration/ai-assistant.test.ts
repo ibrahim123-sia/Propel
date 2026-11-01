@@ -228,6 +228,19 @@ describe("customer assistant in the website chat (10 §2)", () => {
     expect(view.messages.at(-1)!.body).toBe("You're booked.");
   });
 
+  it("a promised hand-over happens even when the model forgot to call request_human", async () => {
+    const db = await getDb();
+    await startChat({ ...contact, message: "Can you get the owner to drop the price by 10%?" });
+    const [conv] = await db.select().from(conversations);
+    scriptMockReplies({ text: "Sure, I’ll pass this on to our team." });
+    expect(await replyInConversation(db, { conversationId: conv!.id })).toMatchObject({
+      status: "replied",
+      handedOver: true,
+    });
+    const [after] = await db.select().from(conversations).where(eq(conversations.id, conv!.id));
+    expect(after!.status).toBe("needs_human");
+  });
+
   it("goes to the team when the assistant cannot answer, telling the visitor once", async () => {
     const db = await getDb();
     // Anthropic without a key: the assistant is unavailable.

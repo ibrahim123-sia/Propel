@@ -175,8 +175,22 @@ export function historyMessages(lines: ChatLine[]): AiMessage[] {
 
 /* One turn ------------------------------------------------------------------------------- */
 
+/** "I've asked our team to reply", "I'll pass this on to our agents": a promised hand-over. */
+export function claimsHandover(text: string): boolean {
+  const done = /\bi(?:'ve|’ve| have)\s+(?:just\s+)?(?:asked|told|passed|forwarded|notified|let)\b/i;
+  const will = /\bi(?:'ll|’ll| will)\s+(?:just\s+)?(?:ask|tell|pass|forward|notify|let)\b/i;
+  const team = /\b(?:team|agents?|colleagues?|someone)\b/i;
+  // Questions ("Shall I ask the team?") are offers, not promises.
+  return text
+    .split(/(?<=[.!?\n])\s+/)
+    .filter((s) => !s.trim().endsWith("?"))
+    .some((s) => (done.test(s) || will.test(s)) && team.test(s));
+}
+
 export type CustomerTurn = RunAgentResult & {
   handedOver: boolean;
+  /** The answer told the visitor the team would reply, but `request_human` was not called. */
+  handoverOnlyClaimed: boolean;
   /** Listing ids to show as cards under the answer. */
   cards: string[];
 };
@@ -257,10 +271,14 @@ export async function runCustomerTurn(options: {
     onEvent: options.onEvent,
     now,
   });
-  const handedOver = run.toolCalls.some((c) => c.name === "request_human" && c.ok);
+  const called = run.toolCalls.some((c) => c.name === "request_human" && c.ok);
+  // A model may say "I've asked our team" without calling the tool; the visitor then waits
+  // for a person, so the hand-over happens anyway (replyInConversation).
+  const claimed = !called && run.status === "done" && claimsHandover(run.text);
   return {
     ...run,
-    handedOver,
+    handedOver: called || claimed,
+    handoverOnlyClaimed: claimed,
     cards: run.status === "done" ? cardsFor(run.text, run.toolCalls) : [],
   };
 }
@@ -394,6 +412,12 @@ export async function replyInConversation(
     }
     let text = turn.text;
     let handedOver = turn.handedOver;
+    if (turn.handoverOnlyClaimed)
+      await handOver(db, {
+        conversationId: conv.id,
+        reason: "The assistant told the visitor the team would reply.",
+        now,
+      });
     if (turn.status === "refusal" || turn.status === "max_steps" || !text) {
       // No usable answer: say so plainly and let a person take it from here.
       const reason =

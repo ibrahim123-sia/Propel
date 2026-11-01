@@ -96,6 +96,14 @@ export function ungroundedListings(
 async function assistant(c: AssistantCase, world: EvalWorld, agent: EvalAgent): Promise<string[]> {
   const turn = await agent({ question: c.question, page: c.page, history: c.history });
   const called = turn.toolCalls.map((t) => t.name);
+  // AI_EVAL_VERBOSE=1: what the model did, to see why a case fails.
+  if (process.env.AI_EVAL_VERBOSE)
+    console.log(
+      `\n--- ${c.id}: ${c.question}\n  tools: ${
+        turn.toolCalls.map((t) => `${t.name}(${JSON.stringify(t.input ?? {})})`).join(", ") ||
+        "(none)"
+      }${turn.handedOver ? "\n  handed over" : ""}\n  answer: ${turn.text.replace(/\s+/g, " ").slice(0, 600)}`,
+    );
   const problems: string[] = [];
   for (const name of c.expect.mustCallTools ?? [])
     if (!called.includes(name)) problems.push(`did not call ${name}`);
