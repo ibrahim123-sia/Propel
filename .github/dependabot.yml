@@ -11,6 +11,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # v9 is a rewrite of the table API every admin list uses: migrate on purpose, not by PR.
+      - dependency-name: "@tanstack/react-table"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
