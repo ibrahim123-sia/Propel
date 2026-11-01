@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import type { DbOrTx } from "@/db/client";
+import { latestChatTopics } from "@/features/ai/topics";
 import { liveStatuses } from "@/features/properties/status";
 import { format } from "@/lib/i18n";
 import { reports as t } from "@/lib/i18n/dictionaries/reports";
@@ -151,6 +152,20 @@ export async function loadDashboardSuggestions(
       body: s.seoBody,
       href: "/admin/properties?missingSeo=1",
       actionLabel: s.seoAction,
+      tone: "info",
+    });
+  // 10 §3: a blog topic from the week's common chat questions (the weekly grouping, 10 §5).
+  const topic = (await latestChatTopics(db))?.topics.find((x) => x.blogIdea);
+  if (topic)
+    cards.push({
+      id: "blog-topic",
+      title: format(s.topicTitle, { idea: topic.blogIdea! }),
+      body: format(topic.count === 1 ? s.topicBodyOne : s.topicBodyMany, {
+        n: topic.count,
+        label: topic.label,
+      }),
+      href: "/admin/website/blog",
+      actionLabel: s.topicAction,
       tone: "info",
     });
   // Keep the column short: the most useful few.

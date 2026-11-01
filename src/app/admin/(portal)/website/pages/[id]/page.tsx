@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageEditor } from "@/components/admin/pages/editor/page-editor";
 import { getDb } from "@/db/client";
+import { writingHelpersOn } from "@/features/ai/config";
 import { loadPageEditorData } from "@/features/cms/page-admin";
 import { PREVIEW_PURPOSE } from "@/features/cms/page-public";
 import { PREVIEW_LINK_DAYS } from "@/features/cms/page-schema";
@@ -28,6 +29,7 @@ export default async function PageEditorPage(props: PageProps<"/admin/website/pa
       previewSrc={`/preview/${token}?edit=1`}
       siteName={general.agencyName}
       readOnly={user.readOnly}
+      aiHelpers={!user.readOnly && (await writingHelpersOn(db))}
     />
   );
 }

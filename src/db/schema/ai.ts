@@ -154,3 +154,33 @@ export const aiUsage = pgTable(
     uniqueIndex("ai_usage_day_feature_model_unique").on(t.agencyId, t.date, t.feature, t.model),
   ],
 );
+
+export type ChatTopic = {
+  /** A short name for what visitors asked about ("Service charges in JVC"). */
+  label: string;
+  /** How many of the week's questions fall under it. */
+  count: number;
+  /** Two or three questions in the visitors' words (contact details removed). */
+  examples: string[];
+  /** A blog post that would answer it, when one fits. */
+  blogIdea: string | null;
+};
+
+/**
+ * The week's common chat questions, grouped by the weekly job (10 §5 "Chat topic clustering",
+ * 13 §2 Mondays): what visitors asked in the website chat and on WhatsApp, for the dashboard's
+ * blog topic suggestions and the assistant's `chat_topics` tool.
+ */
+export const chatTopicReports = pgTable(
+  "chat_topic_reports",
+  {
+    id: idColumn(),
+    agencyId: agencyColumn(),
+    /** The first of the seven days grouped (agency time zone): the Monday before the run. */
+    weekStart: date().notNull(),
+    questionCount: integer().notNull().default(0),
+    topics: jsonb().$type<ChatTopic[]>().notNull().default([]),
+    ...timestamps(),
+  },
+  (t) => [uniqueIndex("chat_topic_reports_week_unique").on(t.agencyId, t.weekStart)],
+);

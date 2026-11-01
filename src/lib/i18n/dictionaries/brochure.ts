@@ -57,6 +57,9 @@ export const brochure = {
     units: "Units",
     unitMix: "Unit types",
     plan: "Payment plan",
+    schedule: "Payment schedule",
+    scheduleNote:
+      "Made on {date}. Amounts follow the price on that day; the sale contract sets the final schedule.",
     furnishing: "Furnishing",
     parking: "Parking",
     view: "View",

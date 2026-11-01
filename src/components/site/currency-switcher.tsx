@@ -6,16 +6,12 @@ import { useId, useState, useTransition } from "react";
 import { notify } from "./site-toaster";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { setCurrency } from "@/features/site/currency-actions";
 import { pages } from "@/lib/i18n";
+import { useLoadOnDemand } from "@/lib/use-load-on-demand";
+
+// The dropdown (Radix menu and positioning) loads on the first click, not with every page.
+const loadDropdown = () => import("./currency-dropdown").then((m) => m.CurrencyDropdown);
 
 export type CurrencyOption = { code: string; symbol: string; example: boolean };
 
@@ -36,6 +32,7 @@ export function CurrencySwitcher({
   const [pending, startTransition] = useTransition();
   const [chosen, setChosen] = useState(current);
   const name = useId();
+  const [Dropdown, loadMenu] = useLoadOnDemand(loadDropdown);
   const t = pages.currency;
 
   const choose = (code: string) => {
@@ -88,30 +85,26 @@ export function CurrencySwitcher({
     );
   }
 
+  const trigger = (
+    <Button
+      variant="ghost"
+      className="gap-1 px-2.5 text-[15px] font-semibold text-ink"
+      aria-label={`${t.label}: ${chosen}`}
+      aria-haspopup="menu"
+      disabled={pending}
+      onClick={Dropdown ? undefined : loadMenu}
+    >
+      {chosen}
+      <ChevronDownIcon className="size-4 opacity-60" aria-hidden />
+    </Button>
+  );
+  if (!Dropdown) return trigger;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="gap-1 px-2.5 text-[15px] font-semibold text-ink"
-          aria-label={`${t.label}: ${chosen}`}
-          disabled={pending}
-        >
-          {chosen}
-          <ChevronDownIcon className="size-4 opacity-60" aria-hidden />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-52">
-        <DropdownMenuLabel>{t.choose}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={chosen} onValueChange={choose}>
-          {options.map((o) => (
-            <DropdownMenuRadioItem key={o.code} value={o.code}>
-              {label(o)}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-        <p className="px-2 pt-1 pb-1.5 text-[12px] text-text-muted">{t.note}</p>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Dropdown
+      trigger={trigger}
+      chosen={chosen}
+      options={options.map((o) => ({ code: o.code, label: label(o) }))}
+      onChoose={choose}
+    />
   );
 }

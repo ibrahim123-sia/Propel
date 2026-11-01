@@ -21,6 +21,7 @@ import {
   testGoogleCalendar,
 } from "@/features/integrations/google-calendar/calendar";
 import { patchSettings } from "@/features/settings/mutations";
+import { loadSettings } from "@/features/settings/queries";
 import { setSecret } from "@/features/settings/secrets";
 import { availableSlots } from "@/features/viewings/availability";
 import { bookViewing } from "@/features/viewings/book";
@@ -64,10 +65,12 @@ function fakeApi(calls: Call[], busy: Awaited<ReturnType<CalendarApi["busy"]>> =
     },
     async insertEvent(_token, _cal, event: CalendarEvent) {
       calls.push({ op: "insert", args: [event] });
-      return `evt-${++n}`;
+      const id = `evt-${++n}`;
+      return { id, meetUrl: event.meet ? `https://meet.google.com/${id}` : null };
     },
     async updateEvent(_token, _cal, id, event) {
       calls.push({ op: "update", args: [id, event] });
+      return { id, meetUrl: event.meet ? `https://meet.google.com/${id}` : null };
     },
     async deleteEvent(_token, _cal, id) {
       calls.push({ op: "delete", args: [id] });
@@ -215,6 +218,36 @@ describe("Google Calendar (13 §1)", () => {
     expect(await syncViewingEvent(db, booked.viewingId)).toEqual({ removed: true });
     expect(calls.filter((c) => c.op === "delete").map((c) => c.args[0])).toEqual(["evt-1"]);
     expect((await db.select().from(viewings))[0]!.googleEventId).toBeNull();
+  });
+
+  it("a video viewing gets its Google Meet link from the event when Meet is the video tool", async () => {
+    const { db, agent, listing } = await world();
+    await connect(db, agent);
+    const viewingSettings = await loadSettings("viewings", db);
+    await patchSettings(db, "viewings", { ...viewingSettings, videoTool: "google_meet" }, actor);
+    const slots = (await availableSlots(db, agent, now)).slots;
+    const booked = await bookViewing(db, {
+      propertyId: listing,
+      type: "video",
+      start: slots[0]!.start,
+      name: "Sam",
+      email: "sam@example.com",
+      phone: "0501234567",
+      notes: "",
+      timeZone: null,
+      now,
+    });
+    expect(await syncViewingEvent(db, booked.viewingId)).toEqual({
+      created: "evt-1",
+      meetUrl: "https://meet.google.com/evt-1",
+    });
+    expect((calls.find((c) => c.op === "insert")!.args[0] as CalendarEvent).meet).toBe(true);
+    expect((await db.select().from(viewings))[0]!.meetingUrl).toBe("https://meet.google.com/evt-1");
+    // Moved later: the link stays, Google is not asked for another one.
+    await rescheduleViewing(db, booked.manageToken, slots[2]!.start, now);
+    await syncViewingEvent(db, booked.viewingId);
+    expect((calls.find((c) => c.op === "update")!.args[1] as CalendarEvent).meet).toBe(false);
+    expect((await db.select().from(viewings))[0]!.meetingUrl).toBe("https://meet.google.com/evt-1");
   });
 
   it("refreshes an expired access token; disconnecting revokes and clears", async () => {

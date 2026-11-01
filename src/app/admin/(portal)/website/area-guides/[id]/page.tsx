@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { GuideEditor } from "@/components/admin/area-guides/guide-editor";
 import { PageHeader } from "@/components/admin/page-header";
 import { getDb } from "@/db/client";
+import { writingHelpersOn } from "@/features/ai/config";
 import { loadGuideEditorData } from "@/features/area-guides/queries";
 import { loadSettings } from "@/features/settings/queries";
 import { requireAdminPage } from "@/lib/auth/guards";
@@ -29,7 +30,12 @@ export default async function AreaGuideEditorPage(
           { label: data.input.title },
         ]}
       />
-      <GuideEditor data={data} siteName={general.agencyName} readOnly={user.readOnly} />
+      <GuideEditor
+        data={data}
+        siteName={general.agencyName}
+        readOnly={user.readOnly}
+        aiHelpers={!user.readOnly && (await writingHelpersOn(db))}
+      />
     </>
   );
 }

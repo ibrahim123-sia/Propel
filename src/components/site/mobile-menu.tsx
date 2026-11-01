@@ -1,12 +1,17 @@
 "use client";
 
 import { MenuIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
+import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { SiteLink } from "@/features/menus/schema";
 import { site } from "@/lib/i18n";
-import { MenuLink } from "./menu-link";
+
+// The sheet (Radix dialog, focus trap, scroll lock) loads when the menu first opens.
+const MobileMenuSheet = dynamic(
+  () => import("./mobile-menu-sheet").then((m) => m.MobileMenuSheet),
+  { ssr: false },
+);
 
 /**
  * Phone menu: a full-screen sheet with the phone menu (or the header menu), dropdown links
@@ -24,64 +29,37 @@ export function MobileMenu({
   extras?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [used, setUsed] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
   if (nav.length === 0 && !button && !extras) return null;
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          className="lg:hidden"
-          aria-label={site.a11y.openMenu}
-        >
-          <MenuIcon className="size-6" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="right" className="w-full max-w-none bg-bg sm:max-w-sm">
-        <SheetHeader>
-          <SheetTitle className="font-display text-xl font-normal">{agencyName}</SheetTitle>
-        </SheetHeader>
-        {nav.length > 0 && (
-          <nav aria-label={site.a11y.mainNavigation} className="px-4">
-            <ul className="flex flex-col">
-              {nav.map((item, i) => (
-                <li key={`${i}-${item.href}`} className="border-b border-border">
-                  <MenuLink
-                    link={item}
-                    onClick={() => setOpen(false)}
-                    className="block py-4 text-lg text-ink"
-                  />
-                  {item.children.length > 0 && (
-                    <ul className="flex flex-col ps-4 pb-3">
-                      {item.children.map((c, j) => (
-                        <li key={`${j}-${c.href}`}>
-                          <MenuLink
-                            link={c}
-                            onClick={() => setOpen(false)}
-                            className="block py-2 text-[16px] text-text-muted hover:text-ink"
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-        <div className="flex flex-col gap-6 px-4 pt-6">
-          {button && (
-            <a
-              href={button.href}
-              onClick={() => setOpen(false)}
-              className="inline-flex h-12 items-center justify-center rounded-button bg-primary px-5 text-[15px] font-semibold text-primary-foreground"
-            >
-              {button.label}
-            </a>
-          )}
-          {extras}
-        </div>
-      </SheetContent>
-    </Sheet>
+    <>
+      <Button
+        ref={opener}
+        variant="ghost"
+        size="icon-lg"
+        className="lg:hidden"
+        aria-label={site.a11y.openMenu}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => {
+          setUsed(true);
+          setOpen(true);
+        }}
+      >
+        <MenuIcon className="size-6" />
+      </Button>
+      {used && (
+        <MobileMenuSheet
+          open={open}
+          onOpenChange={setOpen}
+          opener={opener}
+          nav={nav}
+          agencyName={agencyName}
+          button={button}
+          extras={extras}
+        />
+      )}
+    </>
   );
 }

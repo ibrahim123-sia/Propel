@@ -15,7 +15,7 @@ import {
   loadBrochure,
   type LoadedBrochure,
 } from "./data";
-import { brochureHtml, type ImageSource } from "./template";
+import { brochureHtml, paymentScheduleHtml, type ImageSource } from "./template";
 import type { BrochureData, BrochureImage, BrochureKind } from "./types";
 
 /**
@@ -63,6 +63,17 @@ export async function brochureDocument(d: BrochureData): Promise<string> {
   // BROCHURE_WEB_FONTS=off (tests, the e2e server): no request to Google Fonts.
   return brochureHtml(d, await imageSource(d), {
     webFonts: process.env.BROCHURE_WEB_FONTS !== "off",
+  });
+}
+
+/** The one-page payment schedule (06 §5.8), or null when the home or project has no plan. */
+export async function paymentScheduleDocument(
+  d: BrochureData,
+  generatedOn: string,
+): Promise<string | null> {
+  return paymentScheduleHtml(d, await imageSource(d), {
+    webFonts: process.env.BROCHURE_WEB_FONTS !== "off",
+    generatedOn,
   });
 }
 

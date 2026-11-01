@@ -77,6 +77,7 @@ export function ProjectEditor({
   nearby,
   market,
   readOnly,
+  aiHelpers = false,
 }: {
   id: string;
   initial: ProjectInput;
@@ -89,6 +90,8 @@ export function ProjectEditor({
   nearby: PropertyPoisView;
   market: ProjectEditorMarket;
   readOnly: boolean;
+  /** The writing helpers are on (10 §5). */
+  aiHelpers?: boolean;
 }) {
   const router = useRouter();
   const [data, setData] = useState(initial);
@@ -234,6 +237,7 @@ export function ProjectEditor({
     rememberMedia,
     activity,
     readOnly,
+    aiHelpers: aiHelpers && !readOnly,
   };
 
   return (

@@ -1,5 +1,9 @@
 /** Newsletter signup, confirmation and unsubscribe (05 §13). */
 export const newsletter = {
+  post: {
+    title: "Get new posts and homes by email",
+    intro: "About once a month. Unsubscribe with one click.",
+  },
   footer: {
     title: "Newsletter",
     intro: "New homes and market notes, about once a month.",

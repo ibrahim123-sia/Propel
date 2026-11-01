@@ -3,7 +3,14 @@ import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db/client";
 import { currentAgencyId } from "@/db/schema/_common";
-import { badges, facilities, locations, propertyTypes } from "@/db/schema/master-data";
+import {
+  badges,
+  facilities,
+  locations,
+  poiTypes,
+  pois,
+  propertyTypes,
+} from "@/db/schema/master-data";
 import { agents } from "@/db/schema/people";
 import { projects } from "@/db/schema/projects";
 import { properties } from "@/db/schema/properties";
@@ -83,6 +90,7 @@ export async function searchLabels(f: SearchFilters): Promise<SearchLabels> {
     tags.masterData("property-types"),
     tags.masterData("facilities"),
     tags.masterData("badges"),
+    tags.masterData("pois"),
   );
   const db = await getDb();
   const agency = currentAgencyId();
@@ -117,6 +125,13 @@ export async function searchLabels(f: SearchFilters): Promise<SearchLabels> {
       .where(and(eq(facilities.agencyId, agency), inArray(facilities.id, f.fac)));
     for (const r of rows) labels.facilities[r.id] = r.name;
   }
+  if (f.commute) {
+    const [place] = await db
+      .select({ name: pois.name })
+      .from(pois)
+      .where(and(eq(pois.agencyId, agency), eq(pois.id, f.commute.poi)));
+    labels.commutePlace = place?.name ?? null;
+  }
   const badgeIds = f.badge.filter((b) => /^[0-9a-f-]{36}$/i.test(b));
   if (badgeIds.length) {
     const rows = await db
@@ -144,6 +159,8 @@ export type SearchOptions = {
   rentPaymentOptions: number[];
   /** This year, for the handover filter (from the server, not the render). */
   year: number;
+  /** The agency's places for the commute filter (11 §9), grouped by type. */
+  places: Array<{ id: string; name: string; typeName: string }>;
 };
 
 export async function searchOptions(): Promise<SearchOptions> {
@@ -152,6 +169,8 @@ export async function searchOptions(): Promise<SearchOptions> {
   cacheTag(
     tags.masterData("property-types"),
     tags.masterData("facilities"),
+    tags.masterData("pois"),
+    tags.masterData("poi-types"),
     tags.settings("market"),
   );
   const db = await getDb();
@@ -167,7 +186,15 @@ export async function searchOptions(): Promise<SearchOptions> {
     .from(facilities)
     .where(eq(facilities.agencyId, agency))
     .orderBy(asc(facilities.sortOrder), asc(facilities.name));
+  const placeRows = await db
+    .select({ id: pois.id, name: pois.name, typeName: poiTypes.name })
+    .from(pois)
+    .innerJoin(poiTypes, eq(poiTypes.id, pois.poiTypeId))
+    .where(and(eq(pois.agencyId, agency), eq(pois.isActive, true)))
+    .orderBy(asc(poiTypes.sortOrder), asc(poiTypes.name), asc(pois.name))
+    .limit(500);
   return {
+    places: placeRows,
     types: typeRows,
     facilities: facilityRows,
     furnishing: market.furnishingOptions,

@@ -129,6 +129,11 @@ export const properties = pgTable(
     isFeatured: boolean().notNull().default(false),
     featuredUntil: timestamp({ withTimezone: true }),
     publishedAt: timestamp({ withTimezone: true }),
+    /**
+     * When it last went live: the first publish, or coming back from off market or a draft.
+     * Saved-search digests use it, so a listing back on the market reaches them too.
+     */
+    wentLiveAt: timestamp({ withTimezone: true }),
     viewsCount: integer().notNull().default(0),
     inquiriesCount: integer().notNull().default(0),
     source: text({ enum: propertySources }).notNull().default("manual"),

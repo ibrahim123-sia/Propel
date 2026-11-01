@@ -322,6 +322,46 @@ export const templateDefaults = {
       button: "Confirm my subscription",
     },
   },
+  "system.integration_error": {
+    audience: "internal",
+    label: "An integration stopped working (to admins)",
+    variables: ["integration", "error", "url"],
+    email: {
+      subject: "{{integration}} is not working",
+      body: "{{integration}} answered with an error:\n\n{{error}}\n\nUntil it is fixed, what depends on it (emails, WhatsApp messages, maps, calendars or the assistant) may not go out. Check the key and test it again in Settings -> Integrations.",
+      button: "Open Integrations",
+    },
+  },
+  "system.rates_reminder": {
+    audience: "internal",
+    label: "Monthly reminder to update exchange rates (to admins)",
+    variables: ["updated", "currencies", "url"],
+    email: {
+      subject: "Time to check the exchange rates",
+      body: "Visitors can see prices in {{currencies}}. The display rates were last updated {{updated}}. Please check them in Settings -> Market so converted prices stay close to today's rates.",
+      button: "Open Market settings",
+    },
+  },
+  "account.deleted": {
+    audience: "customer",
+    label: "Account deleted (to the customer)",
+    variables: ["agency", "url"],
+    email: {
+      subject: "Your {{agency}} account has been deleted",
+      body: "Hello,\n\nAs you asked, your account with {{agency}} has been deleted, with your saved homes, lists and searches. What we keep about past inquiries and viewings no longer names you.\n\nIf you did not ask for this, reply to this email.",
+      button: "Visit the website",
+    },
+  },
+  "account.export_ready": {
+    audience: "customer",
+    label: "Your data download (to the customer)",
+    variables: ["name", "agency", "url"],
+    email: {
+      subject: "Your data from {{agency}}",
+      body: "Hello {{name}},\n\nYou downloaded a copy of your data from {{agency}}. You can download it again at any time from the privacy page of your account.\n\nIf this was not you, change your password and reply to this email.",
+      button: "Open my privacy page",
+    },
+  },
 } satisfies Record<string, TemplateDefault>;
 
 /** Variables used in a text that the template does not offer (they would render empty). */

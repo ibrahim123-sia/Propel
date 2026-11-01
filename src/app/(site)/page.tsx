@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HideChat } from "@/components/site/chat/chat-controls";
 import { RenderSections, type SectionContext } from "@/components/site/sections/render-sections";
 import { getHomePage } from "@/features/cms/queries";
 import { getPublicMedia } from "@/features/media/queries";
@@ -46,5 +47,10 @@ export default async function HomePage() {
     baseCurrency: { code: market.baseCurrency.code, decimals: market.baseCurrency.decimals },
     pageId: page.id,
   };
-  return <RenderSections sections={page.sections} ctx={ctx} />;
+  return (
+    <>
+      {page.hideChat && <HideChat />}
+      <RenderSections sections={page.sections} ctx={ctx} />
+    </>
+  );
 }

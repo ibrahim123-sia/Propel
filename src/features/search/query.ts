@@ -3,6 +3,7 @@ import { and, eq, inArray, isNotNull, isNull, sql, type SQL } from "drizzle-orm"
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db/client";
 import { currentAgencyId } from "@/db/schema/_common";
+import { pois } from "@/db/schema/master-data";
 import { properties } from "@/db/schema/properties";
 import { loadListingCards, type ListingCardData } from "@/features/listings/cards";
 import { publicPoint } from "@/features/listings/public-point";
@@ -10,7 +11,7 @@ import { searchableStatuses } from "@/features/properties/status";
 import { loadSettings } from "@/features/settings/queries";
 import { tags } from "@/lib/cache-tags";
 import { areaToSqm } from "@/lib/units";
-import { PAGE_SIZE, type SearchFilters } from "./params";
+import { PAGE_SIZE, type SearchCommute, type SearchFilters } from "./params";
 
 type Market = Awaited<ReturnType<typeof loadSettings<"market">>>;
 
@@ -54,6 +55,40 @@ const handoverEnd = (h: string) => {
   return end.toISOString().slice(0, 10);
 };
 
+/**
+ * Commute time to one of the agency's places (11 §9), cost-safe: the drive or walk time
+ * measured for the listing (property_pois, from Google Routes when the place was among its
+ * nearest) when there is one, else an estimate from the straight-line distance (roads are
+ * about 40% longer; 30 km/h by car in town, 4.8 km/h on foot), labelled as an estimate.
+ * Nothing calls Google on a page view (07 §4.7).
+ */
+export const COMMUTE_ESTIMATE = {
+  drive: { detour: 1.4, metresPerMinute: 500 },
+  walk: { detour: 1.3, metresPerMinute: 80 },
+} as const;
+
+/** Minutes from the listing to the place: measured when known, else estimated. Null: no pin. */
+export function commuteMinutesSql(c: SearchCommute): SQL {
+  const p = properties;
+  const e = COMMUTE_ESTIMATE[c.mode];
+  const measured =
+    c.mode === "drive"
+      ? sql`(select pp.drive_seconds from property_pois pp where pp.property_id = ${p.id} and pp.poi_id = ${c.poi}::uuid)`
+      : sql`(select pp.walk_seconds from property_pois pp where pp.property_id = ${p.id} and pp.poi_id = ${c.poi}::uuid)`;
+  // Only a live place of this agency counts, measured or not.
+  const place = sql`(select poi.point::geography from pois poi where poi.id = ${c.poi}::uuid and poi.agency_id = ${currentAgencyId()} and poi.is_active)`;
+  return sql`(case when ${place} is null then null else coalesce(
+    ceil(${measured} / 60.0),
+    ceil(ST_Distance(${p.point}::geography, ${place}) * ${e.detour} / ${e.metresPerMinute})
+  ) end)`;
+}
+
+/** Whether the time is a measurement (false: the straight-line estimate). */
+export function commuteMeasuredSql(c: SearchCommute): SQL {
+  const column = c.mode === "drive" ? sql`pp.drive_seconds` : sql`pp.walk_seconds`;
+  return sql`exists (select 1 from property_pois pp where pp.property_id = ${properties.id} and pp.poi_id = ${c.poi}::uuid and ${column} is not null)`;
+}
+
 /** WHERE conditions for the filters (06 §4.2). Only live, searchable listings. */
 export function searchConditions(f: SearchFilters, market: Market): SQL[] {
   const agency = currentAgencyId();
@@ -87,6 +122,7 @@ export function searchConditions(f: SearchFilters, market: Market): SQL[] {
     const ring = [...f.poly, f.poly[0]!].map(([lng, lat]) => `${lng} ${lat}`).join(", ");
     where.push(sql`ST_Within(${p.point}, ST_GeomFromText(${`POLYGON((${ring}))`}, 4326))`);
   }
+  if (f.commute) where.push(sql`${commuteMinutesSql(f.commute)} <= ${f.commute.minutes}`);
   if (f.type.length)
     where.push(
       sql`${p.propertyTypeId} in (select id from property_types where agency_id = ${agency} and slug in ${f.type})`,
@@ -183,8 +219,13 @@ export async function searchListings(f: SearchFilters): Promise<SearchResult> {
   const total = count?.n ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(f.page, pages);
+  const c = f.commute;
   const ids = await db
-    .select({ id: properties.id })
+    .select({
+      id: properties.id,
+      minutes: c ? sql<number | null>`${commuteMinutesSql(c)}` : sql<null>`null`,
+      measured: c ? sql<boolean>`${commuteMeasuredSql(c)}` : sql<boolean>`false`,
+    })
     .from(properties)
     .where(where)
     .orderBy(...orderBy(f, market), sql`${properties.id} desc`)
@@ -194,6 +235,23 @@ export async function searchListings(f: SearchFilters): Promise<SearchResult> {
     db,
     ids.map((r) => r.id),
   );
+  if (c) {
+    const [place] = await db
+      .select({ name: pois.name })
+      .from(pois)
+      .where(and(eq(pois.id, c.poi), eq(pois.agencyId, currentAgencyId())));
+    const times = new Map(ids.map((r) => [r.id, r]));
+    for (const card of cards) {
+      const t = times.get(card.id);
+      if (place && t?.minutes != null)
+        card.commute = {
+          minutes: Number(t.minutes),
+          mode: c.mode,
+          place: place.name,
+          estimate: !t.measured,
+        };
+    }
+  }
   return { total, page, pages, cards };
 }
 

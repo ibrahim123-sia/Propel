@@ -30,7 +30,9 @@ export async function subscribeFromFooter(
     const meta = await currentRequestMeta();
     if (!(await hit(`form:${meta.ip ?? "unknown"}`, rateLimitRules.form, db)).allowed)
       return { status: "error", message: t.footer.busy };
-    await subscribeNewsletter(db, { email, source: "footer" });
+    // Where the form was: the footer, or a blog post (06 §9).
+    const source = form.get("source") === "blog" ? "blog" : "footer";
+    await subscribeNewsletter(db, { email, source });
     return { status: "sent", message: t.footer.sent };
   } catch {
     return { status: "error", message: "Something went wrong. Please try again." };

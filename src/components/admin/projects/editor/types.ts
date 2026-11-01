@@ -29,4 +29,6 @@ export type ProjectSectionProps = {
   rememberMedia: (items: MediaItem[]) => void;
   activity: ProjectActivity;
   readOnly: boolean;
+  /** The writing helpers are on (10 §5). */
+  aiHelpers?: boolean;
 };

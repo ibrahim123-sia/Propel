@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
+  CheckboxListField,
+  ListField,
   NumberField,
   SelectField,
   SwitchField,
@@ -15,7 +17,13 @@ import { LocationSelect } from "@/components/admin/properties/editor/location-se
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { faqGroups } from "@/db/schema/content";
 import type { SectionOptions } from "@/features/cms/page-admin";
-import { pageFormTypes, type SectionPropsOf, type SectionType } from "@/features/cms/sections";
+import {
+  pageFormTypes,
+  siteTools,
+  type SectionPropsOf,
+  type SectionType,
+  type SiteTool,
+} from "@/features/cms/sections";
 import type { MediaItem } from "@/features/media/queries";
 import { emptyDoc, type RichDoc } from "@/lib/rich-text";
 import {
@@ -50,6 +58,14 @@ export const faqGroupLabels: Record<(typeof faqGroups)[number], string> = {
   off_plan: "Off-plan",
   selling: "Selling",
   general: "General",
+};
+
+export const toolLabels: Record<SiteTool, string> = {
+  mortgage: "Mortgage calculator",
+  rental_returns: "Rental returns",
+  compare: "Compare homes",
+  valuation: "Free valuation",
+  list_property: "List your property",
 };
 
 export const formTypeLabels: Record<(typeof pageFormTypes)[number], string> = {
@@ -812,6 +828,43 @@ const forms: { [T in SectionType]: (props: FormProps<T>) => ReactNode } = {
         errorFor={(f) => err(f.replace(/^props\./, ""))}
       />
       <p className="text-[12.5px] text-text-muted">The background is set in the Style tab.</p>
+    </>
+  ),
+  tools: ({ p, set, err }) => (
+    <>
+      <Eyebrow p={p} set={set} err={err} />
+      <CheckboxListField
+        label="Tools to show"
+        value={p.tools ?? []}
+        onChange={(tools) => set({ tools })}
+        options={siteTools.map((value) => ({ value, label: toolLabels[value] }))}
+        error={err("tools")}
+      />
+    </>
+  ),
+  ai_teaser: ({ p, set, err }) => (
+    <>
+      <Eyebrow p={p} set={set} err={err} />
+      <TextareaField
+        label="Text"
+        rows={3}
+        value={p.text ?? ""}
+        maxLength={300}
+        onChange={(text) => set({ text })}
+        error={err("text")}
+      />
+      <ListField
+        label="Example questions"
+        description="Each one opens the chat with the question typed in. Up to 6."
+        value={p.prompts ?? []}
+        max={6}
+        placeholder="e.g. Two-bed apartments near the beach?"
+        onChange={(prompts) => set({ prompts })}
+        error={err("prompts")}
+      />
+      <p className="text-[12.5px] text-text-muted">
+        The section shows only while the website chat is on (Settings &rarr; AI).
+      </p>
     </>
   ),
   contact_block: (props) => {

@@ -29,6 +29,7 @@ import { format, pages, site } from "@/lib/i18n";
 import { Icon } from "@/lib/icons";
 import { formatArea, formatDistance, formatDuration, type AreaUnit } from "@/lib/units";
 import { redirectIfMoved } from "@/features/seo/serve";
+import { shareImage } from "@/features/og/cards";
 
 /** Per request: the slug (and the visitor's currency cookie) decide what renders; data is cached. */
 export const instant = false;
@@ -51,7 +52,7 @@ export async function generateMetadata(props: PageProps<"/projects/[slug]">): Pr
   const title = projectTitle(p, seo.projectTitlePattern, general.agencyName);
   const description = projectDescription(p);
   const og = p.seo.ogImageId ? await getPublicMedia(p.seo.ogImageId) : null;
-  const image = og?.url ?? p.photos[0]?.url;
+  const images = await shareImage("project", p.slug, og?.url);
   return {
     title,
     description,
@@ -61,8 +62,9 @@ export async function generateMetadata(props: PageProps<"/projects/[slug]">): Pr
       title,
       description,
       type: "website",
-      images: image ? [{ url: `${image}?w=1200&q=75`, width: 1200 }] : undefined,
+      images,
     },
+    twitter: { card: "summary_large_image", title, description, images: images.map((i) => i.url) },
   };
 }
 
@@ -375,6 +377,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[slug]">) 
                 notes={p.plan.notes}
                 headingLevel={2}
                 price={p.startingPrice ? { amount: p.startingPrice, currency } : null}
+                scheduleHref={`/api/brochure/project/${p.id}/schedule`}
               />
             </div>
           )}

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { decideApproval, updateConversation } from "@/features/inbox/actions";
+import { decideApproval, flagAssistantAnswer, updateConversation } from "@/features/inbox/actions";
 import type {
   ApprovalItem,
   ConversationDetail,
@@ -447,6 +447,9 @@ function ConversationPane({
                 {mine && ` · ${t.messageStatus[m.status]}`}
                 {m.error && <span className="block text-destructive">{m.error}</span>}
               </span>
+              {m.sender === "ai" && m.direction === "out" && (
+                <AnswerFlag messageId={m.id} flag={m.flag} readOnly={readOnly} />
+              )}
             </li>
           );
         })}
@@ -580,5 +583,79 @@ function Approvals({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * 10 §2: flag an assistant answer that was wrong (with a short note on what), to improve the
+ * prompts; the AI report counts flags. A flag can be taken back.
+ */
+function AnswerFlag({
+  messageId,
+  flag,
+  readOnly,
+}: {
+  messageId: string;
+  flag: { at: string; note: string | null } | null;
+  readOnly: boolean;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const save = useAction(flagAssistantAnswer, {
+    onSuccess: () => {
+      setOpen(false);
+      setNote("");
+      router.refresh();
+    },
+  });
+  if (flag)
+    return (
+      <span className="flex flex-wrap items-center gap-2 text-[11px] text-destructive">
+        {t.flag.flagged}
+        {flag.note ? `: ${flag.note}` : ""}
+        {!readOnly && (
+          <button
+            type="button"
+            className="underline"
+            disabled={save.pending}
+            onClick={() => save.run({ messageId, flagged: false, note: null })}
+          >
+            {t.flag.remove}
+          </button>
+        )}
+      </span>
+    );
+  if (readOnly) return null;
+  if (!open)
+    return (
+      <button
+        type="button"
+        className="text-[11px] text-muted-foreground underline"
+        onClick={() => setOpen(true)}
+      >
+        {t.flag.open}
+      </button>
+    );
+  return (
+    <form
+      className="flex w-full max-w-sm items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save.run({ messageId, flagged: true, note: note || null });
+      }}
+    >
+      <Input
+        aria-label={t.flag.noteLabel}
+        placeholder={t.flag.notePlaceholder}
+        value={note}
+        maxLength={500}
+        onChange={(e) => setNote(e.target.value)}
+        className="h-8 text-xs"
+      />
+      <Button type="submit" size="sm" variant="outline" disabled={save.pending}>
+        {t.flag.save}
+      </Button>
+    </form>
   );
 }

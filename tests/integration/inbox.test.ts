@@ -14,6 +14,7 @@ import { auditLog, emailLog } from "@/db/schema/system";
 import {
   decideApproval,
   deleteQuickReply,
+  flagAssistantAnswer,
   reorderQuickReplies,
   replyToConversation,
   saveQuickReply,
@@ -182,6 +183,35 @@ describe("inbox (09 §6)", () => {
     ]);
     const rows = await db.select().from(approvalQueue);
     expect(rows.every((r) => r.decidedBy === testAdmin.id && r.decidedAt)).toBe(true);
+  });
+
+  it("flags an assistant answer with a note, shows it in the conversation, and takes it back", async () => {
+    const { db, conv } = await setup();
+    const [answer, mine] = await db
+      .insert(messages)
+      .values([
+        { conversationId: conv.id, direction: "out", sender: "ai", body: "Prices start at 1M." },
+        { conversationId: conv.id, direction: "out", sender: "admin", body: "Hello" },
+      ])
+      .returning();
+    expect(
+      await flagAssistantAnswer({ messageId: answer!.id, flagged: true, note: "Made up a price" }),
+    ).toMatchObject({ ok: true });
+    const view = await loadConversation(db, conv.id);
+    expect(view!.messages.find((m) => m.id === answer!.id)!.flag).toMatchObject({
+      note: "Made up a price",
+    });
+    // Only the assistant's answers can be flagged.
+    expect(await flagAssistantAnswer({ messageId: mine!.id, flagged: true })).toMatchObject({
+      ok: false,
+    });
+    expect(await flagAssistantAnswer({ messageId: answer!.id, flagged: false })).toMatchObject({
+      ok: true,
+    });
+    const [row] = await db.select().from(messages).where(eq(messages.id, answer!.id));
+    expect(row).toMatchObject({ flaggedAt: null, flagNote: null });
+    const audits = await db.select().from(auditLog).where(eq(auditLog.entityId, answer!.id));
+    expect(audits.map((a) => a.action).sort()).toEqual(["ai.answer_flag", "ai.answer_unflag"]);
   });
 
   it("quick replies: add, edit, order and delete", async () => {

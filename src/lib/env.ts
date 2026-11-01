@@ -30,6 +30,23 @@ const serverEnvSchema = z.object({
   /** Local media folder for the fs driver; defaults to ~/.propel/media (see lib/storage). */
   STORAGE_FS_DIR: z.string().optional(),
   JOBS_DRIVER: z.enum(["inline", "queue", "manual"]).default("inline"),
+  /**
+   * R2 through its S3 API, for STORAGE_DRIVER=r2 outside a Worker (the nightly demo reset in
+   * GitHub Actions, a seed from a laptop). In a Worker the MEDIA_BUCKET binding is used.
+   */
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().default("propel-media"),
+
+  /**
+   * AI provider keys from the environment (local development, a server's own secrets). A key
+   * saved in Settings -> Integrations wins; these are used when none is saved there.
+   */
+  XAI_API_KEY: z.string().trim().optional(),
+  GROQ_API_KEY: z.string().trim().optional(),
+  GEMINI_API_KEY: z.string().trim().optional(),
+  ANTHROPIC_API_KEY: z.string().trim().optional(),
 
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().default("1x00000000000000000000AA"),
   TURNSTILE_SECRET_KEY: z.string().default("1x0000000000000000000000000000000AA"),

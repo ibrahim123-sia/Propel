@@ -126,7 +126,11 @@ export async function TextImage({ s, headingIds }: { s: Of<"text_image">; headin
 
 function Stars({ n }: { n: number }) {
   return (
-    <p className="flex gap-0.5 text-accent" aria-label={format(cms.testimonials.rating, { n })}>
+    <p
+      role="img"
+      className="flex gap-0.5 text-accent"
+      aria-label={format(cms.testimonials.rating, { n })}
+    >
       {Array.from({ length: 5 }, (_, i) => (
         <StarIcon
           key={i}

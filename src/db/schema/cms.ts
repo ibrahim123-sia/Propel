@@ -40,6 +40,8 @@ export const pages = pgTable(
     draftSections: jsonb().$type<StoredSection[]>(),
     draftUpdatedAt: timestamp({ withTimezone: true }),
     isHome: boolean().notNull().default(false),
+    /** The website chat button stays off on this page (06 §2), e.g. a campaign landing page. */
+    hideChat: boolean().notNull().default(false),
     version: integer().notNull().default(1),
     ...seoColumns(),
     ...softDelete(),

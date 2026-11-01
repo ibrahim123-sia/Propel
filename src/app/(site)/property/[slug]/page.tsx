@@ -46,8 +46,8 @@ import { areaFromSqm, perAreaFromSqm } from "@/lib/units";
 import { format } from "@/lib/i18n";
 import { Icon } from "@/lib/icons";
 import { property as t } from "@/lib/i18n/dictionaries/property";
-import { mediaVariant } from "@/lib/media-src";
 import { redirectIfMoved } from "@/features/seo/serve";
+import { shareImage } from "@/features/og/cards";
 
 /** Per request: the slug (and the visitor's currency cookie) decide what renders; data is cached. */
 export const instant = false;
@@ -55,9 +55,14 @@ export const instant = false;
 const appUrl = () => (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 /** "Garden villa · Pier Seven, 7 Quay Road, Old Harbour, Coastal City" — never the unit number. */
+/** Building, address and the place path, each name once ("Dubai Marina" is often in all three). */
 function addressLine(l: PublicListing): string {
   const places = [...l.places].reverse().map((p) => p.name);
-  return [l.buildingName, l.addressLine, ...places].filter(Boolean).join(", ");
+  const parts = [l.buildingName, ...(l.addressLine ?? "").split(","), ...places]
+    .map((p) => p?.trim())
+    .filter((p): p is string => Boolean(p));
+  const seen = new Set<string>();
+  return parts.filter((p) => !seen.has(p.toLowerCase()) && seen.add(p.toLowerCase())).join(", ");
 }
 
 export async function generateMetadata(props: PageProps<"/property/[slug]">): Promise<Metadata> {
@@ -76,7 +81,7 @@ export async function generateMetadata(props: PageProps<"/property/[slug]">): Pr
   const title = listingTitle(l, seo.listingTitlePattern, market, general.agencyName);
   const description = (l.seo.description || l.descriptionText).slice(0, 160) || undefined;
   const canonical = l.seo.canonicalUrl || `/property/${l.slug}`;
-  const image = l.seo.ogImageUrl ? mediaVariant(l.seo.ogImageUrl, 1200) : undefined;
+  const images = await shareImage("property", l.slug, l.seo.chosenOgImageUrl);
   return {
     title,
     description,
@@ -87,8 +92,9 @@ export async function generateMetadata(props: PageProps<"/property/[slug]">): Pr
       title,
       description,
       url: canonical,
-      images: image ? [{ url: image, width: 1200 }] : undefined,
+      images,
     },
+    twitter: { card: "summary_large_image", title, description, images: images.map((i) => i.url) },
   };
 }
 
@@ -239,6 +245,7 @@ export default async function PropertyPage(props: PageProps<"/property/[slug]">)
               <Section id="plan" title={t.plan.title}>
                 <PaymentPlanView
                   headingLevel={3}
+                  scheduleHref={`/api/brochure/property/${l.id}/schedule`}
                   steps={l.plan.steps}
                   summaryLabel={l.plan.summaryLabel}
                   notes={l.plan.notes}

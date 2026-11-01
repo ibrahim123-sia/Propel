@@ -863,6 +863,19 @@ export async function seedPreset(
     generatePassword,
   });
 
+  // 16 §2-3: which demo market is loaded, for "Switch demo market" and the nightly reset.
+  await patchSettings(
+    db,
+    "demo",
+    {
+      preset: preset.key === "us-demo" ? "us-demo" : "haven-dune",
+      requestedPreset: null,
+      requestedAt: null,
+      lastResetAt: now.toISOString(),
+    },
+    system,
+  );
+
   const count = async (table: string) =>
     (
       (await db.execute<{ n: number }>(sql.raw(`select count(*)::int as n from "${table}"`)))

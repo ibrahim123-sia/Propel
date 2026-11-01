@@ -15,6 +15,8 @@ export type SearchFilters = {
   loc: string[];
   /** Drawn area: one ring of [lng, lat] (06 §4.5). */
   poly: Array<[number, number]> | null;
+  /** Commute time (11 §9): to one of the agency's places, by car or on foot, within N minutes. */
+  commute: SearchCommute | null;
   /** Property type slugs. */
   type: string[];
   /** Price in major units of the base currency. */
@@ -47,6 +49,24 @@ export type SearchFilters = {
 };
 
 export const PAGE_SIZE = 20;
+
+export const commuteModes = ["drive", "walk"] as const;
+export type CommuteMode = (typeof commuteModes)[number];
+/** The minute limits the filter offers (11 §9: 5 to 60). */
+export const commuteMinutes = [5, 10, 15, 20, 30, 45, 60] as const;
+
+export type SearchCommute = { poi: string; mode: CommuteMode; minutes: number };
+
+/** `commute=<poi id>.<drive|walk>.<minutes>` */
+export function parseCommute(raw: string | undefined): SearchCommute | null {
+  const m = /^([0-9a-f-]{36})\.(drive|walk)\.(\d{1,2})$/i.exec(raw ?? "");
+  if (!m) return null;
+  const minutes = Number(m[3]);
+  if (!(commuteMinutes as readonly number[]).includes(minutes)) return null;
+  return { poi: m[1]!.toLowerCase(), mode: m[2] as CommuteMode, minutes };
+}
+
+export const commuteParam = (c: SearchCommute) => `${c.poi}.${c.mode}.${c.minutes}`;
 
 type Params = Record<string, string | string[] | undefined> | URLSearchParams;
 
@@ -158,6 +178,7 @@ export function parseSearch(
       ...getAll(sp, "loc").filter((l) => SLUG.test(l.replace(/^p\./, ""))),
     ]).slice(0, 10),
     poly: decodePolygon(get(sp, "poly") ?? ""),
+    commute: parseCommute(get(sp, "commute")),
     type: unique([...(preset.type ?? []), ...getAll(sp, "type").filter((t) => SLUG.test(t))]).slice(
       0,
       10,
@@ -206,6 +227,7 @@ export function searchQuery(
   if (!preset.completion) add("completion", f.completion);
   for (const l of f.loc) if (!preset.loc?.includes(l)) add("loc", l);
   if (f.poly) add("poly", encodePolygon(f.poly));
+  if (f.commute) add("commute", commuteParam(f.commute));
   for (const t of f.type) if (!preset.type?.includes(t)) add("type", t);
   add("min", f.min);
   add("max", f.max);

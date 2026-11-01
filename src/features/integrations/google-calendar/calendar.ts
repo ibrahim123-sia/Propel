@@ -8,7 +8,8 @@ import { agents } from "@/db/schema/people";
 import { projects } from "@/db/schema/projects";
 import { properties } from "@/db/schema/properties";
 import { loadSettings } from "@/features/settings/queries";
-import { getSecret, recordSecretTest } from "@/features/settings/secrets";
+import { getSecret } from "@/features/settings/secrets";
+import { recordIntegrationResult } from "@/features/system/alerts";
 import { siteOrigin } from "@/features/site/url";
 import { zonedTime } from "@/features/viewings/slots";
 import { defineJob } from "@/jobs/types";
@@ -370,19 +371,28 @@ export async function syncViewingEvent(
       contactEmail: row.contact.email,
       leadUrl: v.leadId ? `${siteOrigin()}/admin/leads/${v.leadId}` : null,
     });
+    // Video viewings with Google Meet as the video tool get their link from the event (06 §5).
+    const { videoTool } = await loadSettings("viewings", db);
+    event.meet = v.type === "video" && videoTool === "google_meet" && !v.meetingUrl;
+    const keepMeet = async (meetUrl: string | null) => {
+      if (event.meet && meetUrl)
+        await db.update(viewings).set({ meetingUrl: meetUrl }).where(eq(viewings.id, v.id));
+    };
     if (v.googleEventId) {
       try {
-        await calendarApi().updateEvent(token, conn.calendarId, v.googleEventId, event);
-        return { updated: v.googleEventId };
+        const res = await calendarApi().updateEvent(token, conn.calendarId, v.googleEventId, event);
+        await keepMeet(res.meetUrl);
+        return { updated: v.googleEventId, meetUrl: event.meet ? res.meetUrl : undefined };
       } catch (err) {
         // Deleted in Google meanwhile: create it again.
         if (!(err instanceof CalendarApiError && (err.status === 404 || err.status === 410)))
           throw err;
       }
     }
-    const id = await calendarApi().insertEvent(token, conn.calendarId, event);
-    await db.update(viewings).set({ googleEventId: id }).where(eq(viewings.id, v.id));
-    return { created: id };
+    const res = await calendarApi().insertEvent(token, conn.calendarId, event);
+    await db.update(viewings).set({ googleEventId: res.id }).where(eq(viewings.id, v.id));
+    await keepMeet(res.meetUrl);
+    return { created: res.id, meetUrl: event.meet ? res.meetUrl : undefined };
   } catch (err) {
     await recordError(db, conn, err);
     throw err;
@@ -431,7 +441,11 @@ export async function testGoogleCalendar(db?: DbOrTx) {
       };
     } else result = { ok: false, message };
   }
-  await recordSecretTest("google_oauth_client_secret", result.ok ? null : result.message, conn);
+  await recordIntegrationResult(
+    "google_oauth_client_secret",
+    result.ok ? null : result.message,
+    conn,
+  );
   return result;
 }
 

@@ -155,7 +155,53 @@ describe("integration keys and connection tests", () => {
     await saveIntegrationKey({ key: "ai_api_key", value: "sk-ant-test" });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(200, { data: [{ id: "claude-x" }] })));
     expect(await testIntegration({ name: "ai" })).toMatchObject({
-      data: { ok: false, message: "Connected, but these models are not available: claude-y" },
+      data: {
+        ok: false,
+        message: "Anthropic (Claude): connected, but these models are not available: claude-y",
+      },
     });
+  });
+
+  it("tests Grok and the Gemini backup, each with its own key and model list", async () => {
+    const db = await getDb();
+    const integrations = await loadSettings("integrations", db);
+    await patchSettings(
+      db,
+      "integrations",
+      {
+        ai: {
+          ...integrations.ai,
+          provider: "xai",
+          chatModel: "grok-4.7",
+          fastModel: "grok-4.20-0309-non-reasoning",
+          fallbackProvider: "gemini",
+          fallbackChatModel: "gemini-3.8-flash",
+          fallbackFastModel: "gemini-3.5-flash-lite",
+        },
+      },
+      actor,
+    );
+    await saveIntegrationKey({ key: "ai_api_key", value: "xai-test" });
+    await saveIntegrationKey({ key: "ai_fallback_api_key", value: "gemini-test" });
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).startsWith("https://api.x.ai/")
+        ? json(200, { data: [{ id: "grok-4.7" }, { id: "grok-4.20-0309-non-reasoning" }] })
+        : json(200, {
+            models: [{ name: "models/gemini-3.8-flash" }, { name: "models/gemini-2.5-pro" }],
+          }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await testIntegration({ name: "ai" })).toMatchObject({
+      data: {
+        ok: false,
+        message:
+          "xAI (Grok): connected. Backup: Google (Gemini): connected, but these models are not available: gemini-3.5-flash-lite",
+      },
+    });
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    expect(calls[0]![0]).toBe("https://api.x.ai/v1/models");
+    expect((calls[0]![1].headers as Record<string, string>).authorization).toBe("Bearer xai-test");
+    expect(calls[1]![0]).toMatch(/^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models/);
+    expect((calls[1]![1].headers as Record<string, string>)["x-goog-api-key"]).toBe("gemini-test");
   });
 });

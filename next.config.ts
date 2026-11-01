@@ -3,7 +3,10 @@ import { API_CSP, PREVIEW_FRAME_OPTIONS, baseSecurityHeaders } from "./src/lib/s
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  partialPrefetching: true,
+  // Off for the public site: on, every page's HTML also carried a second copy of its RSC data
+  // (the embedded runtime prefetch), about a third of the property page. Admin opts in through
+  // `prefetch = "partial"` in its layout. PROGRESS decision 99.
+  partialPrefetching: false,
   poweredByHeader: false,
   // Security headers on every response (14 §2); pages get their CSP from middleware.ts so the
   // report-only switch works at runtime. A later rule wins for the same header.

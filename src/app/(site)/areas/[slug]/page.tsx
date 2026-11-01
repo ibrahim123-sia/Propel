@@ -25,6 +25,7 @@ import { siteOrigin, siteUrl } from "@/features/site/url";
 import { format, pages, site } from "@/lib/i18n";
 import { content } from "@/lib/i18n/dictionaries/content";
 import { areaUnitLabels, perAreaFromSqm } from "@/lib/units";
+import { shareImage } from "@/features/og/cards";
 
 /** Per request: the slug (and the visitor's currency for prices) decide what renders. */
 export const instant = false;
@@ -38,14 +39,16 @@ export async function generateMetadata(props: PageProps<"/areas/[slug]">): Promi
   const seo = await getSettings("seo");
   const title =
     g.seo.title || fillTitlePattern(seo.areaTitlePattern, { area: g.location.name }, g.title);
-  const og = g.seo.ogImageId ? await getPublicMedia(g.seo.ogImageId) : g.cover;
+  const og = g.seo.ogImageId ? await getPublicMedia(g.seo.ogImageId) : null;
+  const images = await shareImage("area", g.slug, og?.url);
   const description = describe(g).slice(0, 160) || undefined;
   return {
     title,
     description,
     alternates: { canonical: g.seo.canonicalUrl || `/areas/${g.slug}` },
     robots: g.seo.noindex ? { index: false, follow: true } : undefined,
-    openGraph: { title, description, images: og ? [{ url: og.url }] : undefined },
+    openGraph: { title, description, images },
+    twitter: { card: "summary_large_image", title, description, images: images.map((i) => i.url) },
   };
 }
 

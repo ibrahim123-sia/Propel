@@ -42,7 +42,7 @@ export function HeroSearchCard({
       method="get"
       role="search"
       aria-label={t.search.submit}
-      className="rounded-[20px] bg-surface p-3 shadow-soft md:p-4"
+      className="@container rounded-[20px] bg-surface p-3 shadow-soft md:p-4"
       onSubmit={(e) => {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
@@ -80,8 +80,9 @@ export function HeroSearchCard({
           ))}
         </div>
       )}
-      <div className="grid gap-2 md:grid-cols-[1.6fr_1fr_1fr_0.8fr_auto]">
-        <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border px-3 py-2">
+      {/* Sized by the card, not the screen: in a half-width hero the place gets its own row. */}
+      <div className="grid gap-2 @md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto] @3xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]">
+        <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-border px-3 py-2 @md:col-span-full @3xl:col-span-1">
           <span className="text-[12px] font-semibold text-text-muted">{t.search.location}</span>
           <LocationSearch
             selected={places}
@@ -93,12 +94,12 @@ export function HeroSearchCard({
             onRemove={(value) => setPlaces((list) => list.filter((p) => p.value !== value))}
           />
         </div>
-        <label className="flex flex-col gap-1 rounded-xl border border-border px-3 py-2">
+        <label className="flex min-w-0 flex-col gap-1 rounded-xl border border-border px-3 py-2">
           <span className="text-[12px] font-semibold text-text-muted">{t.search.type}</span>
           <select
             name="type"
             defaultValue=""
-            className="bg-transparent text-[15px] text-ink outline-none"
+            className="w-full min-w-0 bg-transparent text-[15px] text-ink outline-none"
           >
             <option value="">{t.search.anyType}</option>
             {types.map((ty) => (
@@ -108,13 +109,13 @@ export function HeroSearchCard({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 rounded-xl border border-border px-3 py-2">
+        <label className="flex min-w-0 flex-col gap-1 rounded-xl border border-border px-3 py-2">
           <span className="text-[12px] font-semibold text-text-muted">{t.search.budget}</span>
           <select
             key={tab}
             name="max"
             defaultValue=""
-            className="bg-transparent text-[15px] text-ink outline-none"
+            className="w-full min-w-0 bg-transparent text-[15px] text-ink outline-none"
           >
             <option value="">{t.search.anyBudget}</option>
             {steps.map((v) => (
@@ -126,14 +127,14 @@ export function HeroSearchCard({
         </label>
         <label
           htmlFor={`${id}-beds`}
-          className="hidden flex-col gap-1 rounded-xl border border-border px-3 py-2 md:flex"
+          className="hidden min-w-0 flex-col gap-1 rounded-xl border border-border px-3 py-2 @md:flex"
         >
           <span className="text-[12px] font-semibold text-text-muted">{t.search.beds}</span>
           <select
             id={`${id}-beds`}
             name="beds"
             defaultValue=""
-            className="bg-transparent text-[15px] text-ink outline-none"
+            className="w-full min-w-0 bg-transparent text-[15px] text-ink outline-none"
           >
             <option value="">{t.search.anyBeds}</option>
             <option value="studio">{t.search.studio}</option>

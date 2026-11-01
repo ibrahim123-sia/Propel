@@ -17,6 +17,8 @@ export type SearchLabels = {
   /** Manual badge id -> name. */
   badges: Record<string, string>;
   agent: string | null;
+  /** The commute filter's place (11 §9). */
+  commutePlace?: string | null;
 };
 
 export const emptyLabels = (): SearchLabels => ({
@@ -137,6 +139,16 @@ export function searchChips(
     });
   }
   if (f.poly) chips.push({ key: "poly", label: t.chips.poly, remove: reset({ poly: null }) });
+  if (f.commute && labels.commutePlace)
+    chips.push({
+      key: "commute",
+      label: format(t.commute.chip, {
+        minutes: f.commute.minutes,
+        mode: f.commute.mode === "walk" ? t.commute.walk : t.commute.drive,
+        place: labels.commutePlace,
+      }),
+      remove: reset({ commute: null }),
+    });
   for (const s of f.type) {
     if (preset?.type?.includes(s)) continue;
     chips.push({

@@ -23,7 +23,12 @@ export type CalendarEvent = {
   end: Date;
   /** Our viewing id, so our own events are never read back as busy time. */
   viewingId: string;
+  /** Ask Google to add a Meet link (video viewings with Google Meet as the video tool). */
+  meet?: boolean;
 };
+
+/** What Google answers for a written event: its id and the Meet link when one was asked for. */
+export type WrittenEvent = { id: string; meetUrl: string | null };
 
 export type BusyEvent =
   { start: Date; end: Date } | { allDay: true; startDate: string; endDate: string };
@@ -43,13 +48,13 @@ export interface CalendarApi {
   revoke(token: string): Promise<void>;
   /** Events that make the agent busy between two instants (not ours, not free, not declined). */
   busy(accessToken: string, calendarId: string, from: Date, to: Date): Promise<BusyEvent[]>;
-  insertEvent(accessToken: string, calendarId: string, event: CalendarEvent): Promise<string>;
+  insertEvent(accessToken: string, calendarId: string, event: CalendarEvent): Promise<WrittenEvent>;
   updateEvent(
     accessToken: string,
     calendarId: string,
     eventId: string,
     event: CalendarEvent,
-  ): Promise<void>;
+  ): Promise<WrittenEvent>;
   deleteEvent(accessToken: string, calendarId: string, eventId: string): Promise<void>;
 }
 
@@ -119,7 +124,33 @@ const eventBody = (e: CalendarEvent) => ({
   start: { dateTime: e.start.toISOString() },
   end: { dateTime: e.end.toISOString() },
   extendedProperties: { private: { propelViewingId: e.viewingId } },
+  // One request id per viewing: Google makes one Meet link and returns the same one again.
+  ...(e.meet
+    ? {
+        conferenceData: {
+          createRequest: {
+            requestId: `propel-${e.viewingId}`,
+            conferenceSolutionKey: { type: "hangoutsMeet" },
+          },
+        },
+      }
+    : {}),
 });
+
+/** The written event's id and Meet link (the link may only appear once Google made it). */
+async function written(res: Response): Promise<WrittenEvent> {
+  const body = (await res.json()) as {
+    id: string;
+    hangoutLink?: string;
+    conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+  };
+  const video = body.conferenceData?.entryPoints?.find((p) => p.entryPointType === "video")?.uri;
+  return { id: body.id, meetUrl: body.hangoutLink ?? video ?? null };
+}
+
+/** `conferenceDataVersion=1` lets the request create a Meet link. */
+const withConference = (url: string, e: CalendarEvent) =>
+  e.meet ? `${url}?conferenceDataVersion=1` : url;
 
 export const googleCalendarApi: CalendarApi = {
   async exchangeCode({ code, redirectUri, clientId, clientSecret }) {
@@ -200,18 +231,24 @@ export const googleCalendarApi: CalendarApi = {
     return out;
   },
   async insertEvent(accessToken, calendarId, event) {
-    const res = await fetch(`${CALENDAR}/calendars/${encodeURIComponent(calendarId)}/events`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-      body: JSON.stringify(eventBody(event)),
-      signal: timeout(),
-    });
+    const res = await fetch(
+      withConference(`${CALENDAR}/calendars/${encodeURIComponent(calendarId)}/events`, event),
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+        body: JSON.stringify(eventBody(event)),
+        signal: timeout(),
+      },
+    );
     if (!res.ok) throw await failure(res);
-    return ((await res.json()) as { id: string }).id;
+    return written(res);
   },
   async updateEvent(accessToken, calendarId, eventId, event) {
     const res = await fetch(
-      `${CALENDAR}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+      withConference(
+        `${CALENDAR}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+        event,
+      ),
       {
         method: "PATCH",
         headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
@@ -220,6 +257,7 @@ export const googleCalendarApi: CalendarApi = {
       },
     );
     if (!res.ok) throw await failure(res);
+    return written(res);
   },
   async deleteEvent(accessToken, calendarId, eventId) {
     const res = await fetch(

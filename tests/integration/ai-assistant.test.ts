@@ -6,7 +6,10 @@ import { properties } from "@/db/schema/properties";
 import { emailLog, jobRuns } from "@/db/schema/system";
 import { replyInConversation } from "@/features/ai/assistant/customer";
 import { queueIdleSummaries, summariseConversation } from "@/features/ai/assistant/summary";
-import { resetMock, scriptMockReplies } from "@/features/ai/providers/mock";
+import { setProviderOverride } from "@/features/ai/config";
+import { MockProvider, resetMock, scriptMockReplies } from "@/features/ai/providers/mock";
+import { aiUsage } from "@/db/schema/ai";
+import { resetEnvCache } from "@/lib/env";
 import { askForPerson, sendChatMessage, startChat } from "@/features/chat/actions";
 import { addIncoming } from "@/features/inbox/store";
 import { setWhatsappClient } from "@/features/integrations/whatsapp/client";
@@ -385,7 +388,7 @@ describe("customer assistant on WhatsApp (10 §2)", () => {
     expect(sent.every((s) => s.to === wa)).toBe(true);
     expect(sent.map((s) => s.kind)).toContain("text");
 
-    // A voice note without words: a person answers it.
+    // A voice note with no way to write it down (the test provider has none): a person answers.
     await handleWhatsappWebhook(
       db,
       inbound("wamid.in2", {
@@ -393,6 +396,7 @@ describe("customer assistant on WhatsApp (10 §2)", () => {
         audio: { id: "media-1", mime_type: "audio/ogg" },
       }) as never,
     );
+    await runDueJobs();
     const [after] = await db.select().from(conversations);
     expect(after!.status).toBe("needs_human");
     const queued = await db
@@ -400,5 +404,74 @@ describe("customer assistant on WhatsApp (10 §2)", () => {
       .from(jobRuns)
       .where(and(eq(jobRuns.name, "ai.customer_reply"), eq(jobRuns.status, "queued")));
     expect(queued).toHaveLength(0);
+  });
+
+  it("writes a voice note down with Groq's Whisper and the assistant answers it", async () => {
+    const db = await getDb();
+    // Groq chosen (its key from the environment); replies still come from the test provider.
+    await patchSettings(
+      db,
+      "integrations",
+      {
+        ai: {
+          ...defaultsFor("integrations").ai,
+          enabled: true,
+          provider: "groq",
+          chatModel: "openai/gpt-oss-120b",
+          fastModel: "openai/gpt-oss-20b",
+        },
+      },
+      actor,
+    );
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    resetEnvCache();
+    setProviderOverride(new MockProvider());
+    setWhatsappClient({
+      sendText: () => Promise.resolve({ id: "wamid.outx" }),
+      sendTemplate: () => Promise.resolve({ id: "wamid.outy" }),
+      sendImage: () => Promise.resolve({ id: "wamid.outz" }),
+      downloadMedia: (id) =>
+        Promise.resolve(
+          id === "media-2" ? { bytes: new Uint8Array([1, 2, 3]), mime: "audio/ogg" } : null,
+        ),
+    });
+    const whisper = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe("https://api.groq.com/openai/v1/audio/transcriptions");
+      expect((init!.headers as Record<string, string>).authorization).toBe("Bearer gsk_test");
+      const form = init!.body as FormData;
+      expect(form.get("model")).toBe("whisper-large-v3-turbo");
+      return Response.json({ text: "Do you have villas in Dubai Hills?", duration: 4.2 });
+    });
+    vi.stubGlobal("fetch", whisper);
+    try {
+      await handleWhatsappWebhook(
+        db,
+        inbound("wamid.voice1", {
+          type: "audio",
+          audio: { id: "media-2", mime_type: "audio/ogg" },
+        }) as never,
+      );
+      await runDueJobs(); // the transcription
+      const [voice] = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.externalId, "wamid.voice1"));
+      expect(voice!.body).toBe("[voice note] Do you have villas in Dubai Hills?");
+      expect(whisper).toHaveBeenCalledTimes(1);
+      const [conv] = await db.select().from(conversations);
+      expect(conv!.status).toBe("ai");
+      const reply = await db.select().from(jobRuns).where(eq(jobRuns.name, "ai.customer_reply"));
+      expect(reply).toHaveLength(1);
+      const [usage] = await db
+        .select()
+        .from(aiUsage)
+        .where(eq(aiUsage.model, "whisper-large-v3-turbo"));
+      expect(usage).toMatchObject({ feature: "whatsapp", inputTokens: 5 });
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+      resetEnvCache();
+      setProviderOverride(null);
+    }
   });
 });

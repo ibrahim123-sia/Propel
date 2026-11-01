@@ -65,8 +65,12 @@ export type AiStreamEvent =
   | { type: "tool_use_start"; id: string; name: string }
   | { type: "done"; response: AiResponse };
 
+/** The real model providers Settings -> Integrations offers. */
+export const aiProviderNames = ["xai", "groq", "gemini", "anthropic"] as const;
+export type AiProviderName = (typeof aiProviderNames)[number];
+
 export interface AiProvider {
-  readonly name: "anthropic" | "mock";
+  readonly name: AiProviderName | "mock";
   complete(request: AiRequest): Promise<AiResponse>;
   /** Text arrives as it is written; the last event carries the whole response. */
   stream(request: AiRequest): AsyncIterable<AiStreamEvent>;

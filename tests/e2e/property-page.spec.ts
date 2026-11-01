@@ -236,6 +236,10 @@ test("property page: book a tour at a real free time, then move and cancel it", 
 
   // The private link: move to another time, then cancel.
   const manage = await dialog.getByRole("link", { name: "Change or cancel" }).getAttribute("href");
+  // Closing the dialog sends focus back to the button that opened it.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(card.getByRole("button", { name: "Book a tour" })).toBeFocused();
   await page.goto(manage!);
   await expect(page.getByRole("heading", { name: "Your viewing", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "Move to another time" }).click();

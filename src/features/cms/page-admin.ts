@@ -159,6 +159,7 @@ export type PageEditorData = {
     ogImageId: string | null;
     canonicalUrl: string | null;
     noindex: boolean;
+    hideChat: boolean;
     updatedAt: string;
     draftUpdatedAt: string | null;
   };
@@ -308,6 +309,7 @@ export async function loadPageEditorData(db: DbOrTx, id: string): Promise<PageEd
       ogImageId: row.ogImageId,
       canonicalUrl: row.canonicalUrl,
       noindex: row.noindex,
+      hideChat: row.hideChat,
       updatedAt: row.updatedAt.toISOString(),
       draftUpdatedAt: row.draftUpdatedAt?.toISOString() ?? null,
     },

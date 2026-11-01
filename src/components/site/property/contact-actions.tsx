@@ -4,20 +4,16 @@ import { CalendarCheckIcon, MessageCircleIcon, PhoneIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { LazyDialog } from "@/components/ui/lazy-dialog";
 import type { InquiryKind } from "@/features/inquiries/schema";
 import { property as t } from "@/lib/i18n/dictionaries/property";
 import { BrochureButton } from "../brochure/brochure-button";
 import { TrackedContactLink } from "../tracked-contact-link";
-import { InquiryForm } from "./inquiry-form";
 
-// The booking flow loads when someone opens "Book a tour", not with the page.
+// The forms load when someone opens "Book a tour" or "Request a callback", not with the page.
+const InquiryForm = dynamic(() => import("./inquiry-form").then((m) => m.InquiryForm), {
+  ssr: false,
+});
 const BookingForm = dynamic(() => import("../viewings/booking-form").then((m) => m.BookingForm), {
   ssr: false,
 });
@@ -46,24 +42,23 @@ const titles: Record<InquiryKind, string> = {
 export function useInquiryDialog(info: ContactInfo) {
   const [kind, setKind] = useState<InquiryKind | null>(null);
   const dialog = (
-    <Dialog open={kind !== null} onOpenChange={(o) => !o && setKind(null)}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{kind ? titles[kind] : ""}</DialogTitle>
-          <DialogDescription>{info.reference}</DialogDescription>
-        </DialogHeader>
-        {kind === "tour" && <BookingForm propertyId={info.propertyId} agentName={info.agentName} />}
-        {kind && kind !== "tour" && (
-          <InquiryForm
-            key={kind}
-            propertyId={info.propertyId}
-            reference={info.reference}
-            kind={kind}
-            onDone={() => setKind(null)}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <LazyDialog
+      open={kind !== null}
+      onOpenChange={(o) => !o && setKind(null)}
+      title={kind ? titles[kind] : ""}
+      description={info.reference}
+    >
+      {kind === "tour" && <BookingForm propertyId={info.propertyId} agentName={info.agentName} />}
+      {kind && kind !== "tour" && (
+        <InquiryForm
+          key={kind}
+          propertyId={info.propertyId}
+          reference={info.reference}
+          kind={kind}
+          onDone={() => setKind(null)}
+        />
+      )}
+    </LazyDialog>
   );
   return { open: setKind, dialog };
 }

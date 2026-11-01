@@ -46,6 +46,17 @@ export const pageFormTypes = [
 ] as const;
 export type PageFormType = (typeof pageFormTypes)[number];
 
+/** The tools a "Tools" section can show (06 §3 item 7, 11). */
+export const siteTools = [
+  "mortgage",
+  "rental_returns",
+  "compare",
+  "valuation",
+  "list_property",
+] as const;
+export type SiteTool = (typeof siteTools)[number];
+const defaultTools: SiteTool[] = ["mortgage", "rental_returns", "compare", "valuation"];
+
 export const sectionStyleSchema = z
   .object({
     background: z.enum(["sand", "white", "soft", "ink", "image"]).default("white"),
@@ -221,6 +232,26 @@ const propsByType = {
     .strict(),
   cta: z
     .object({ heading: text(120), text: text(300), buttons: z.array(button).max(2).default([]) })
+    .strict(),
+  tools: z
+    .object({
+      eyebrow: text(60),
+      heading: text(120),
+      tools: z
+        .array(z.enum(siteTools))
+        .min(1)
+        .max(siteTools.length)
+        .default([...defaultTools]),
+    })
+    .strict(),
+  ai_teaser: z
+    .object({
+      eyebrow: text(60),
+      heading: text(120),
+      text: text(300),
+      /** Chips that open the chat with this question already typed (06 §3 item 6). */
+      prompts: z.array(z.string().trim().min(1).max(80)).max(6).default([]),
+    })
     .strict(),
   contact_block: z
     .object({

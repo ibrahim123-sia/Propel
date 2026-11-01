@@ -68,6 +68,8 @@ export const admin = {
     title: "Dashboard",
     welcome: "Welcome, {name}",
   },
+  integrationErrorBanner: "Not working right now: {names}.",
+  integrationErrorLink: "Check Integrations",
   readOnly: {
     banner: "Demo viewer: you can open every screen, but changes are not saved.",
     blocked: "This demo account is read-only, so the change was not saved.",

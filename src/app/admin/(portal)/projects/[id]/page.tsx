@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { ProjectEditor } from "@/components/admin/projects/editor/project-editor";
 import { resolveMapStyle } from "@/components/maps/map-style";
 import { getDb } from "@/db/client";
+import { writingHelpersOn } from "@/features/ai/config";
 import { currencyFormats } from "@/features/properties/format";
 import { loadProjectEditorData } from "@/features/projects/editor-data";
 import { siteTitleTemplate } from "@/features/seo/titles";
@@ -42,6 +43,7 @@ export default async function ProjectEditorPage(props: PageProps<"/admin/project
         activity={data.activity}
         nearby={data.nearby}
         readOnly={user.readOnly}
+        aiHelpers={!user.readOnly && (await writingHelpersOn(db))}
         market={{
           baseCurrency: market.baseCurrency.code,
           currencies: currencyFormats(market),

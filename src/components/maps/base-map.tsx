@@ -3,13 +3,12 @@
 import type { Map as MapLibreMap, MapOptions } from "maplibre-gl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "cn";
-import "maplibre-gl/dist/maplibre-gl.css";
 
 export type LngLat = { lng: number; lat: number };
 
-/** The module object `import("maplibre-gl")` resolves to (loaded lazily, so only its type is static). */
+/** The module object the lazy `import("./maplibre")` resolves to (only its type is static). */
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- must match the dynamic import's type exactly
-export type MapLibreModule = typeof import("maplibre-gl");
+export type MapLibreModule = typeof import("./maplibre");
 
 /**
  * MapLibre 6 builds its worker path from a variable, which bundlers cannot follow, so the
@@ -74,7 +73,7 @@ export function BaseMap({
     if (!visible || !container.current || mapRef.current) return;
     let cancelled = false;
     let map: MapLibreMap | null = null;
-    import("maplibre-gl")
+    import("./maplibre")
       .then((maplibre) => {
         if (cancelled || !container.current) return;
         if (!maplibre.getWorkerUrl()) maplibre.setWorkerUrl(workerUrl());

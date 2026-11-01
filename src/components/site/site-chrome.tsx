@@ -15,7 +15,14 @@ import { SiteStructuredData } from "./site-structured-data";
  * Everything around a public page: skip link, announcement bar, header, footer,
  * notifications and the cookie banner. Used by the site layout and by the root 404 (which renders outside that layout).
  */
-export async function SiteChrome({ children }: { children: ReactNode }) {
+export async function SiteChrome({
+  children,
+  hideChat = false,
+}: {
+  children: ReactNode;
+  /** The page's settings turn the chat button off (06 §2). */
+  hideChat?: boolean;
+}) {
   const legal = await getSettings("legal");
   const ai = await getSettings("ai");
   return (
@@ -36,7 +43,7 @@ export async function SiteChrome({ children }: { children: ReactNode }) {
       <SiteToaster />
       <VisitorTracker />
       <CompareTray />
-      {ai.webChat.enabled && (
+      {ai.webChat.enabled && !hideChat && (
         <ChatLauncher
           title={ai.assistantName}
           greeting={ai.greeting}

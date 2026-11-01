@@ -156,6 +156,44 @@ export async function writeDescription(
   return res.status === "done" && text.length > 40 ? { ok: true, value: text } : failed(res);
 }
 
+/** 07 §3.7: the editor's "Improve" and "Shorten" on the text the admin has now. */
+export type DescriptionEdit = "improve" | "shorten";
+
+const editTask: Record<DescriptionEdit, (words: number) => string> = {
+  improve: () =>
+    "Improve the current description: clearer sentences, a better order (what stands out first, then the layout, then the building or area), no repetition, correct grammar. Keep about the same length.",
+  shorten: (words) =>
+    `Shorten the current description to about ${words} words, keeping what matters most to a buyer or tenant.`,
+};
+
+export async function editDescription(
+  db: DbOrTx,
+  propertyId: string,
+  current: string,
+  edit: DescriptionEdit,
+  options: { provider?: AiProvider } = {},
+): Promise<HelperResult<string>> {
+  const text = current.trim();
+  if (text.length < 40) return { ok: false, message: "Write a few sentences first." };
+  const loaded = await listingFacts(db, propertyId);
+  if (!loaded) return { ok: false, message: "This listing no longer exists." };
+  const [general, ai] = [await loadSettings("general", db), await loadSettings("ai", db)];
+  const words = text.split(/\s+/).length;
+  const res = await run(
+    "description",
+    prompt("description-editor", {
+      agencyName: general.agencyName,
+      tone: toneText[ai.tone],
+      areaUnit: loaded.areaUnit,
+      task: editTask[edit](Math.max(40, Math.round(words * 0.6))),
+    }),
+    `${data("facts", loaded.facts)}\n\n${data("current", text)}`,
+    { db, provider: options.provider },
+  );
+  const out = res.text.replace(/\r/g, "").trim();
+  return res.status === "done" && out.length > 20 ? { ok: true, value: out } : failed(res);
+}
+
 /* Titles --------------------------------------------------------------------------------- */
 
 export const TITLE_MAX = 80;

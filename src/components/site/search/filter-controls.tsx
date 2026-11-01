@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { compactMoney, pluralType, type SearchLabels } from "@/features/search/labels";
 import type { SearchOptions } from "@/features/search/page-data";
-import { searchQuery, type SearchFilters } from "@/features/search/params";
+import { commuteMinutes, searchQuery, type SearchFilters } from "@/features/search/params";
 import { displayPrice, type Rates } from "@/lib/currency-display";
 import { format } from "@/lib/i18n";
 import { search as t } from "@/lib/i18n/dictionaries/search";
@@ -272,6 +272,83 @@ function handoverOptions(year: number): Array<{ value: string | null; label: str
 }
 
 /** Every filter (06 §4.2), for the sheet on phones and "More filters" on desktop. */
+/** Commute time (11 §9): one of the agency's places, by car or on foot, within N minutes. */
+function CommuteField({
+  value,
+  onChange,
+  places,
+}: {
+  value: SearchFilters["commute"];
+  onChange: (commute: SearchFilters["commute"]) => void;
+  places: FilterContext["options"]["places"];
+}) {
+  const placeId = useId();
+  const types = [...new Set(places.map((p) => p.typeName))];
+  const c = t.commute;
+  return (
+    <fieldset className="flex flex-col gap-3">
+      <legend className="mb-1 text-[14px] font-semibold text-ink">{c.title}</legend>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={placeId} className="text-[12.5px] font-semibold text-ink">
+          {c.place}
+        </label>
+        <select
+          id={placeId}
+          value={value?.poi ?? ""}
+          onChange={(e) =>
+            onChange(
+              e.target.value
+                ? {
+                    poi: e.target.value,
+                    mode: value?.mode ?? "drive",
+                    minutes: value?.minutes ?? 20,
+                  }
+                : null,
+            )
+          }
+          className="h-10 rounded-xl border border-border bg-surface px-3 text-[15px] text-ink"
+        >
+          <option value="">{c.anyPlace}</option>
+          {types.map((type) => (
+            <optgroup key={type} label={type}>
+              {places
+                .filter((p) => p.typeName === type)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+      {value && (
+        <div className="grid grid-cols-2 gap-3">
+          <Choice
+            label={c.mode}
+            value={value.mode}
+            onChange={(mode) => onChange({ ...value, mode })}
+            options={[
+              { value: "drive" as const, label: c.byCar },
+              { value: "walk" as const, label: c.onFoot },
+            ]}
+          />
+          <Choice
+            label={c.within}
+            value={value.minutes}
+            onChange={(minutes) => onChange({ ...value, minutes })}
+            options={commuteMinutes.map((m) => ({
+              value: m as number,
+              label: format(c.minutes, { minutes: m }),
+            }))}
+          />
+        </div>
+      )}
+      {value && <p className="text-[12.5px] text-text-muted">{c.note}</p>}
+    </fieldset>
+  );
+}
+
 export function AllFilters({
   f,
   set,
@@ -465,6 +542,13 @@ export function AllFilters({
           ]}
         />
       )}
+      {ctx.options.places.length > 0 && (
+        <CommuteField
+          value={f.commute}
+          onChange={(commute) => set({ commute })}
+          places={ctx.options.places}
+        />
+      )}
       <div className="flex flex-col gap-1">
         <label htmlFor={keywordId} className="text-[12.5px] font-semibold text-ink">
           {t.filters.keyword}
@@ -573,6 +657,7 @@ export function FilterSheet({
                   handover: null,
                   plan: null,
                   cheques: null,
+                  commute: null,
                   q: "",
                 }))
               }

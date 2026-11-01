@@ -276,6 +276,21 @@ describe("alerts (12 §3)", () => {
     );
   });
 
+  it("digests include a listing that came back on the market (decision 70)", async () => {
+    const { db, ids } = await world();
+    await search(db, ids.sam, {
+      name: "Daily marina",
+      alertFrequency: "daily",
+      filters: { loc: ["dubai-marina"] },
+    });
+    // First published long before the search, then back on the market today
+    // (changeStatus sets went_live_at when a listing goes live again).
+    await listing(db, ids, { publishedAt: hoursAgo(24 * 40), wentLiveAt: hoursAgo(2) });
+    await listing(db, ids, { publishedAt: hoursAgo(24 * 40) }); // still the old one
+    expect(await runAlertDigest(db, "daily", now)).toEqual({ searches: 1, sent: 1 });
+    expect((await mails(db))[0]!.subject).toBe("1 new home today for “Daily marina”");
+  });
+
   it("price drops: the savers and matching instant searches, once per new price", async () => {
     const { db, ids } = await world();
     const home = await listing(db, ids);

@@ -6,6 +6,7 @@ import { properties } from "@/db/schema/properties";
 import { auditLog } from "@/db/schema/system";
 import {
   aiDraftBlogPost,
+  aiEditDescription,
   aiListingFromText,
   aiSuggestSeo,
   aiSuggestTitles,
@@ -70,6 +71,32 @@ describe("AI helpers in the editors (10 §5)", () => {
     const titles = await aiSuggestTitles({ propertyId: world.listings.marinaSeaView.id });
     expect(titles.ok && titles.data.titles.length).toBeGreaterThan(0);
     if (titles.ok) for (const t of titles.data.titles) expect(t.length).toBeLessThanOrEqual(80);
+  });
+
+  it("improves and shortens the text in the editor, with the facts beside it", async () => {
+    const propertyId = world.listings.marinaSeaView.id;
+    const current =
+      "This bright apartment  looks over the sea. It has two bedrooms and a big terrace. The building has a pool and a gym. Parking is included. [add detail: the floor]";
+    const improved = await aiEditDescription({ propertyId, current, edit: "improve" });
+    expect(improved).toMatchObject({ ok: true });
+    if (improved.ok) expect(improved.data.text).toContain("looks over the sea");
+    const call = mockCalls().at(-1)!;
+    expect(call.system).toContain('Keep every "[add detail]" mark');
+    expect(JSON.stringify(call.messages)).toContain("<current>");
+    expect(JSON.stringify(call.messages)).toContain("<facts>");
+
+    const shorter = await aiEditDescription({ propertyId, current, edit: "shorten" });
+    expect(shorter.ok && shorter.data.text.length).toBeLessThan(current.length);
+    expect(mockCalls().at(-1)!.system).toMatch(
+      /Shorten the current description to about \d+ words/,
+    );
+
+    // Nothing to work on yet.
+    expect(
+      await aiEditDescription({ propertyId, current: "Nice.", edit: "improve" }),
+    ).toMatchObject({
+      ok: false,
+    });
   });
 
   it("keeps SEO suggestions within the limits and drops the rest", async () => {
