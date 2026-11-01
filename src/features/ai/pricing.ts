@@ -63,6 +63,8 @@ export const modelPrices: Record<string, ModelPrice> = {
   "openai/gpt-oss-20b": { input: 0.075, output: 0.3, cacheRead: 0.0375, cacheWrite: 0 },
   "llama-3.3-70b-versatile": { input: 0.59, output: 0.79, cacheRead: 0.59, cacheWrite: 0 },
   "llama-3.1-8b-instant": { input: 0.05, output: 0.08, cacheRead: 0.05, cacheWrite: 0 },
+  // Voice notes: Whisper is billed per audio hour ($0.04); usage counts seconds as input.
+  "whisper-large-v3-turbo": { input: 11.12, output: 0, cacheRead: 0, cacheWrite: 0 },
   "gemini-4-argon": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 0 },
   "gemini-3.8-flash": { input: 0.75, output: 3.75, cacheRead: 0.075, cacheWrite: 0 },
   "gemini-3.6-flash": { input: 0.75, output: 3.75, cacheRead: 0.075, cacheWrite: 0 },

@@ -8,6 +8,7 @@ import {
   alertsStatusChangeJob,
 } from "@/features/alerts/jobs";
 import { whatsappNotifyJob, whatsappSendJob } from "@/features/integrations/whatsapp/jobs";
+import { whatsappTranscribeJob } from "@/features/integrations/whatsapp/transcribe-job";
 import { leadProcessJob, leadScoreJob } from "@/features/leads/process";
 import { mediaFetchUrlJob } from "@/features/media/fetch-url";
 import { mediaProcessJob } from "@/features/media/process";
@@ -34,6 +35,7 @@ const jobs: JobDefinition[] = [
   leadScoreJob as JobDefinition,
   whatsappSendJob as JobDefinition,
   whatsappNotifyJob as JobDefinition,
+  whatsappTranscribeJob as JobDefinition,
   mediaProcessJob as JobDefinition,
   mediaFetchUrlJob as JobDefinition,
   poiComputeJob as JobDefinition,

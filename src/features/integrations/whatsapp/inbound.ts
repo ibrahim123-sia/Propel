@@ -6,6 +6,8 @@ import { currentAgencyId } from "@/db/schema/_common";
 import { conversations, messages, visitorEvents, visitors } from "@/db/schema/crm";
 import { queueCustomerReply } from "@/features/ai/assistant/customer";
 import { checkAiAvailable } from "@/features/ai/limits";
+import { enqueue } from "@/jobs/enqueue";
+import { WHATSAPP_TRANSCRIBE_JOB } from "./transcribe-job";
 import { findRefCode } from "@/features/attribution/whatsapp-ref";
 import { addIncoming, ensureConversation, findOpenConversation } from "@/features/inbox/store";
 import { e164FromWaId, waId } from "@/features/inbox/rules";
@@ -258,11 +260,17 @@ async function handleMessage(db: Db, msg: WaMessage, profileName: string | null,
     at,
     leadEvent: !leadEventWritten,
   });
-  // The assistant answers words; a photo, file or voice note without any ("[voice note]") goes
-  // to the team (transcribing voice notes is an optional later step, 10 §2).
+  // The assistant answers words. A voice note is written down first (a job, so the webhook
+  // stays fast); a photo or file without words ("[photo]") goes to the team.
   if (conv.status === "ai") {
     const words = Boolean(msg.text?.body.trim()) || !/^\[[^\]]+\]$/.test(body.trim());
     if (words) await queueCustomerReply(db, { conversationId: conv.id, messageId });
+    else if (msg.audio?.id)
+      await enqueue(
+        WHATSAPP_TRANSCRIBE_JOB,
+        { messageId },
+        { db, dedupeKey: `wa-voice:${messageId}` },
+      );
     else
       await db
         .update(conversations)
