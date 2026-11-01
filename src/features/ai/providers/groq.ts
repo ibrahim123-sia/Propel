@@ -77,6 +77,45 @@ function toWireMessages(req: AiRequest): WireMessage[] {
   return out;
 }
 
+type Schema = Record<string, unknown>;
+
+/**
+ * Groq checks tool arguments against the schema itself, and open models often send `null` for
+ * a field they leave out ("maxPrice": null), which Groq then refuses. Optional fields may be
+ * null in what Groq sees; `withoutNulls` drops them again before our own validation.
+ */
+export function nullableOptionals(schema: Schema): Schema {
+  const out: Schema = { ...schema };
+  if (schema.type === "object" && schema.properties && typeof schema.properties === "object") {
+    const required = new Set((schema.required as string[] | undefined) ?? []);
+    out.properties = Object.fromEntries(
+      Object.entries(schema.properties as Record<string, Schema>).map(([k, v]) => {
+        const inner = nullableOptionals(v);
+        if (required.has(k)) return [k, inner];
+        if (typeof inner.type === "string") return [k, { ...inner, type: [inner.type, "null"] }];
+        if (Array.isArray(inner.anyOf))
+          return [k, { ...inner, anyOf: [...inner.anyOf, { type: "null" }] }];
+        return [k, { anyOf: [inner, { type: "null" }] }];
+      }),
+    );
+  }
+  if (schema.type === "array" && schema.items && typeof schema.items === "object")
+    out.items = nullableOptionals(schema.items as Schema);
+  return out;
+}
+
+/** Null-valued fields removed (left out, as our tool schemas expect). */
+export function withoutNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutNulls);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, v]) => v !== null)
+        .map(([k, v]) => [k, withoutNulls(v)]),
+    );
+  return value;
+}
+
 export function groqRequestBody(req: AiRequest, stream: boolean): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: req.model,
@@ -88,7 +127,11 @@ export function groqRequestBody(req: AiRequest, stream: boolean): Record<string,
       const { $schema: _drop, ...parameters } = t.inputSchema;
       return {
         type: "function",
-        function: { name: t.name, description: t.description, parameters },
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: nullableOptionals(parameters),
+        },
       };
     });
   if (stream) {
@@ -131,7 +174,7 @@ function blocksOf(text: string, calls: WireToolCall[]): AiContentBlock[] {
       type: "tool_use",
       id: c.id,
       name: c.function.name,
-      input: parseToolInput(c.function.arguments ?? ""),
+      input: withoutNulls(parseToolInput(c.function.arguments ?? "")),
     });
   return out;
 }

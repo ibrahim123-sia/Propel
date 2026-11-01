@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { FallbackProvider } from "@/features/ai/providers/fallback";
 import { GeminiProvider, geminiBaseUrl, geminiRequestBody } from "@/features/ai/providers/gemini";
-import { GroqProvider, groqBaseUrl, groqRequestBody } from "@/features/ai/providers/groq";
+import {
+  GroqProvider,
+  groqBaseUrl,
+  groqRequestBody,
+  nullableOptionals,
+  withoutNulls,
+} from "@/features/ai/providers/groq";
 import { MockProvider, resetMock, scriptMockReplies } from "@/features/ai/providers/mock";
 import { XaiProvider, xaiBaseUrl, xaiRequestBody } from "@/features/ai/providers/xai";
 import { priceFor } from "@/features/ai/pricing";
@@ -428,11 +434,37 @@ describe("Groq provider (OpenAI-compatible Chat Completions)", () => {
         function: {
           name: "search_listings",
           description: "Search homes",
-          parameters: { type: "object", properties: { beds: { type: "integer" } } },
+          parameters: { type: "object", properties: { beds: { type: ["integer", "null"] } } },
         },
       },
     ]);
     expect(groqBaseUrl(null)).toBe("https://api.groq.com/openai/v1");
+    // Required fields stay as they are; nulls the model sends for left-out ones are dropped.
+    expect(
+      nullableOptionals({
+        type: "object",
+        required: ["text"],
+        properties: {
+          text: { type: "string" },
+          areas: { type: "array", items: { type: "string" } },
+          kind: { anyOf: [{ type: "string" }, { type: "number" }] },
+        },
+      }),
+    ).toEqual({
+      type: "object",
+      required: ["text"],
+      properties: {
+        text: { type: "string" },
+        areas: { type: ["array", "null"], items: { type: "string" } },
+        kind: { anyOf: [{ type: "string" }, { type: "number" }, { type: "null" }] },
+      },
+    });
+    expect(
+      withoutNulls({ text: "villa", maxPrice: null, filters: { beds: null, area: "x" } }),
+    ).toEqual({
+      text: "villa",
+      filters: { area: "x" },
+    });
   });
 
   it("answers with tool calls, and streams text and tool calls built from pieces", async () => {
