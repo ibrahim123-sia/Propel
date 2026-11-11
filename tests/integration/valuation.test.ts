@@ -9,11 +9,7 @@ import { agents } from "@/db/schema/people";
 import { properties } from "@/db/schema/properties";
 import { emailLog } from "@/db/schema/system";
 import { patchSettings } from "@/features/settings/mutations";
-import {
-  sendListingRequest,
-  sendValuationRequest,
-  startOwnerPhotoUpload,
-} from "@/features/valuation/actions";
+import { sendValuationRequest, startOwnerPhotoUpload } from "@/features/valuation/actions";
 import {
   cleanupOwnerPhotos,
   OWNER_PHOTO_FOLDER,
@@ -22,6 +18,8 @@ import {
 } from "@/features/valuation/photos";
 import { createDraftFromListingRequest } from "@/features/valuation/admin-actions";
 import { loadOwnerRequests } from "@/features/valuation/admin";
+import { listingRequestSchema } from "@/features/valuation/schema";
+import { submitOwnerRequest } from "@/features/valuation/submit";
 import { auditLog } from "@/db/schema/system";
 import { runDueJobs } from "@/jobs/runner";
 import { newId } from "@/lib/ids";
@@ -255,36 +253,6 @@ describe("owner tools: valuation and list your property", () => {
     expect(await db.select().from(leads)).toEqual([]);
   });
 
-  it("list your property: a listing request and a landlord lead with the asking rent", async () => {
-    const db = await getDb();
-    const res = await sendListingRequest({
-      ...owner,
-      purpose: "rent",
-      askingPrice: 165_000,
-      availableFrom: "2026-12-01",
-    });
-    expect(res).toMatchObject({ ok: true, data: { kind: "listing", estimate: null } });
-    const [request] = await db.select().from(listingRequests);
-    expect(request).toMatchObject({
-      purpose: "rent",
-      askingPrice: 16_500_000,
-      availableFrom: "2026-12-01",
-      propertyId: null,
-    });
-    const [lead] = await db.select().from(leads);
-    expect(lead).toMatchObject({ source: "listing_request", type: "landlord" });
-    await drain();
-    const mails = await db.select().from(emailLog);
-    expect(mails.map((m) => m.template).sort()).toEqual([
-      "listing_request.new",
-      "listing_request.new",
-      "listing_request.received",
-    ]);
-    expect(mails.find((m) => m.template === "listing_request.new")!.text).toContain(
-      "Asking: AED 165,000",
-    );
-  });
-
   it("photos: signed upload, metadata stripped by the media job, attached by receipt", async () => {
     const db = await getDb();
     const jpeg = new Uint8Array(
@@ -329,8 +297,13 @@ describe("owner tools: valuation and list your property", () => {
   });
   it("admin: a listing request becomes a draft listing in one click, once, audited", async () => {
     const db = await getDb();
-    const res = await sendListingRequest({ ...owner, askingPrice: 2_400_000 });
-    expect(res.ok).toBe(true);
+    // Requests sent before the public form was removed (owners no longer list homes).
+    await submitOwnerRequest(
+      db,
+      "listing",
+      listingRequestSchema.parse({ ...owner, askingPrice: 2_400_000 }),
+      { visitorKey: null },
+    );
     const [request] = await db.select().from(listingRequests);
     const [lead] = await db.select().from(leads);
     const cards = await loadOwnerRequests(db, lead!.id);

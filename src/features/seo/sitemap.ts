@@ -170,9 +170,8 @@ async function pageUrls(db: DbOrTx, rules: SitemapRules, origin: string): Promis
   if (any?.agents) hubs.push({ path: "/agents", lastModified: null });
   // The buyer and investor tools (11 §1, §2) are always there.
   for (const path of toolPaths) hubs.push({ path, lastModified: null });
-  // The owner tools (11 §5-6) are always on.
+  // The valuation tool (11 §5) is always on.
   hubs.push({ path: "/valuation", lastModified: null });
-  hubs.push({ path: "/list-your-property", lastModified: null });
 
   // The home page is always listed, with its own date when it is a builder page.
   const home = own.find((u) => u.path === "/");

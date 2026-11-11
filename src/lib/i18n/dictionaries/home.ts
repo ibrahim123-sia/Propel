@@ -34,7 +34,6 @@ export const sectionsText = {
       },
       compare: { title: "Compare homes", text: "Up to four homes side by side." },
       valuation: { title: "Free valuation", text: "What your home could sell or rent for." },
-      list_property: { title: "List your property", text: "Sell or rent it out with us." },
     },
   },
   aiTeaser: {

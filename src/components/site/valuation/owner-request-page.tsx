@@ -1,14 +1,13 @@
 import { Breadcrumb } from "@/components/site/breadcrumb";
 import { siteOrigin } from "@/features/site/url";
 import { ownerFormOptions } from "@/features/valuation/options";
-import type { OwnerRequestKind } from "@/features/valuation/schema";
 import { pages } from "@/lib/i18n";
 import { valuation as t } from "@/lib/i18n/dictionaries/valuation";
 import { OwnerRequestForm } from "./owner-request-form";
 
-/** /valuation and /list-your-property (11 §5-6): a short intro and the step-by-step form. */
-export async function OwnerRequestPage({ kind }: { kind: OwnerRequestKind }) {
-  const copy = kind === "valuation" ? t.valuation : t.listing;
+/** /valuation (11 §5): a short intro and the step-by-step form. */
+export async function OwnerRequestPage() {
+  const copy = t.valuation;
   const options = await ownerFormOptions();
   return (
     <div className="section-y">
@@ -21,7 +20,7 @@ export async function OwnerRequestPage({ kind }: { kind: OwnerRequestKind }) {
           <h1 className="text-display">{copy.title}</h1>
           <p className="text-lg leading-relaxed text-text">{copy.intro}</p>
         </header>
-        <OwnerRequestForm kind={kind} options={options} />
+        <OwnerRequestForm options={options} />
       </div>
     </div>
   );

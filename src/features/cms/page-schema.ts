@@ -50,7 +50,6 @@ export const reservedSlugs: ReadonlySet<string> = new Set([
   "developers",
   "forgot-password",
   "insights",
-  "list-your-property",
   "media",
   "off-plan",
   "og",

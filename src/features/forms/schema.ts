@@ -48,9 +48,7 @@ export const pageFormSchema = z
       "Enter an email address or a phone number so we can reply",
     );
     if (v.formType === "contact") need(v.message !== "", "message", "Write your message");
-    if (v.formType === "valuation" || v.formType === "list_property")
-      need(v.area !== "", "area", "Say where the property is");
-    if (v.formType === "list_property") need(v.purpose !== null, "purpose", "Choose sale or rent");
+    if (v.formType === "valuation") need(v.area !== "", "area", "Say where the property is");
   });
 
 export type PageFormInput = z.input<typeof pageFormSchema>;

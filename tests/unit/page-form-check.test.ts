@@ -45,8 +45,6 @@ const cases: Array<[string, Partial<PageFormInput>]> = [
   ["a newsletter signup", { formType: "newsletter", name: "" }],
   ["a valuation without an area", { formType: "valuation", message: "" }],
   ["a valuation", { formType: "valuation", area: "Dubai Marina", beds: "2" }],
-  ["listing without sale or rent", { formType: "list_property", area: "JBR" }],
-  ["listing for rent", { formType: "list_property", area: "JBR", purpose: "rent" }],
   ["a long price", { formType: "valuation", area: "JBR", expectedPrice: "9".repeat(41) }],
 ];
 

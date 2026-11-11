@@ -39,7 +39,7 @@ export function PageForm({
   pageId: string | null;
   buttonLabel?: string;
   successMessage?: string;
-  /** For the valuation and list-your-property forms. */
+  /** For the valuation form. */
   propertyTypes: string[];
 }) {
   const t = cms.forms;
@@ -75,7 +75,7 @@ export function PageForm({
 
   const select =
     "h-11 w-full rounded-input border border-input bg-surface px-3 text-[15px] text-ink";
-  const property = formType === "valuation" || formType === "list_property";
+  const property = formType === "valuation";
   return (
     <form
       noValidate
@@ -130,27 +130,6 @@ export function PageForm({
           {...register("preferredTime")}
         />
       )}
-      {formType === "list_property" && (
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1 text-[14px] font-semibold text-ink">{t.purpose}</legend>
-          <div className="flex gap-4 text-[15px]">
-            {(["sale", "rent"] as const).map((p) => (
-              <label key={p} className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  value={p}
-                  className="size-4 accent-[var(--color-accent)]"
-                  {...register("purpose")}
-                />
-                {t.purposes[p]}
-              </label>
-            ))}
-          </div>
-          {err("purpose") && (
-            <span className="text-[13px] font-medium text-danger">{err("purpose")}</span>
-          )}
-        </fieldset>
-      )}
       {property && (
         <>
           <TextField label={t.area} size="default" error={err("area")} {...register("area")} />
@@ -174,14 +153,6 @@ export function PageForm({
               {...register("beds")}
             />
           </div>
-          {formType === "list_property" && (
-            <TextField
-              label={t.expectedPrice}
-              size="default"
-              error={err("expectedPrice")}
-              {...register("expectedPrice")}
-            />
-          )}
         </>
       )}
       {formType !== "newsletter" && formType !== "callback" && (

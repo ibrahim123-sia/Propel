@@ -46,8 +46,6 @@ export function checkPageForm(v: PageFormInput): Partial<Record<keyof PageFormIn
     "Enter an email address or a phone number so we can reply",
   );
   if (v.formType === "contact") need(value("message") !== "", "message", "Write your message");
-  if (v.formType === "valuation" || v.formType === "list_property")
-    need(value("area") !== "", "area", "Say where the property is");
-  if (v.formType === "list_property") need(v.purpose != null, "purpose", "Choose sale or rent");
+  if (v.formType === "valuation") need(value("area") !== "", "area", "Say where the property is");
   return errors;
 }

@@ -10,33 +10,29 @@ import { currentRequestMeta } from "@/lib/request";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { PhotoRefused, ownerPhotoRateRule, startOwnerPhoto } from "./photos";
 import {
-  listingRequestSchema,
   ownerPhotoUploadSchema,
   valuationRequestSchema,
-  type ListingRequestInput,
-  type OwnerRequestKind,
   type OwnerRequestResult,
   type ValuationRequestInput,
 } from "./schema";
 import { submitOwnerRequest } from "./submit";
 
 /**
- * Public owner forms (11 §5-6): validated on the server, honeypot, a per-IP rate limit and
+ * The public valuation form (11 §5): validated on the server, honeypot, a per-IP rate limit and
  * Turnstile, like every public form (14 §2). Bots that fill the honeypot get a plain
  * "thank you" and nothing is stored.
  */
-async function send(
-  kind: OwnerRequestKind,
-  schema: typeof valuationRequestSchema | typeof listingRequestSchema,
-  input: unknown,
+export async function sendValuationRequest(
+  input: ValuationRequestInput,
 ): Promise<ActionResult<OwnerRequestResult>> {
+  const kind = "valuation";
   try {
-    const parsed = (schema as z.ZodType).safeParse(input);
+    const parsed = valuationRequestSchema.safeParse(input);
     if (!parsed.success) {
-      const { fieldErrors, formErrors } = errorsByPath(parsed.error as z.ZodError);
+      const { fieldErrors, formErrors } = errorsByPath(parsed.error);
       return { ok: false, error: formErrors[0] ?? t.errors.check, code: "VALIDATION", fieldErrors };
     }
-    const data = parsed.data as z.output<typeof listingRequestSchema>;
+    const data = parsed.data;
     if (data.website)
       return {
         ok: true,
@@ -59,18 +55,6 @@ async function send(
   } catch (err) {
     return toActionError(err);
   }
-}
-
-export async function sendValuationRequest(
-  input: ValuationRequestInput,
-): Promise<ActionResult<OwnerRequestResult>> {
-  return send("valuation", valuationRequestSchema, input);
-}
-
-export async function sendListingRequest(
-  input: ListingRequestInput,
-): Promise<ActionResult<OwnerRequestResult>> {
-  return send("listing", listingRequestSchema, input);
 }
 
 /** Step 4: a signed link to upload one photo (features/valuation/photos.ts). */

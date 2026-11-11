@@ -8,21 +8,15 @@ import { FormAlert } from "@/components/auth/auth-card";
 import { TextField } from "@/components/auth/text-field";
 import { Turnstile, turnstileEnabled } from "@/components/forms/turnstile";
 import { Button } from "@/components/ui/button";
-import {
-  sendListingRequest,
-  sendValuationRequest,
-  startOwnerPhotoUpload,
-} from "@/features/valuation/actions";
+import { sendValuationRequest, startOwnerPhotoUpload } from "@/features/valuation/actions";
 import { rangeText } from "@/features/valuation/format";
 import {
-  listingRequestSchema,
   OWNER_PHOTO_LIMIT,
   OWNER_PHOTO_MAX_MB,
   ownerConditions,
   ownerSteps,
   ownerUpgrades,
   valuationRequestSchema,
-  type OwnerRequestKind,
   type OwnerRequestResult,
 } from "@/features/valuation/schema";
 import { format } from "@/lib/i18n";
@@ -151,17 +145,11 @@ function SelectBox({
 }
 
 /**
- * The free valuation and "list your property" (11 §5-6): five short steps (sell or rent,
+ * The free valuation (11 §5): five short steps (sell or rent,
  * where, the home, photos, contact), checked step by step and again on the server. A
  * valuation ends on the estimate with the homes it compared, or on "we need a quick look".
  */
-export function OwnerRequestForm({
-  kind,
-  options,
-}: {
-  kind: OwnerRequestKind;
-  options: OwnerFormOptions;
-}) {
+export function OwnerRequestForm({ options }: { options: OwnerFormOptions }) {
   const hydrated = useHydrated();
   const formId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -184,7 +172,6 @@ export function OwnerRequestForm({
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
   const type = options.types.find((x) => x.id === draft.propertyTypeId) ?? null;
-  const listing = kind === "listing";
 
   const payload = () => ({
     purpose: draft.purpose ?? undefined,
@@ -205,13 +192,11 @@ export function OwnerRequestForm({
     marketing: draft.marketing,
     website: draft.website,
     captchaToken: captcha,
-    ...(listing ? { askingPrice: num(draft.askingPrice), availableFrom: draft.availableFrom } : {}),
   });
 
   /** Errors for the fields of one step (or every step). */
   const check = (index: number | null): Record<string, string> => {
-    const schema = listing ? listingRequestSchema : valuationRequestSchema;
-    const res = schema.safeParse(payload());
+    const res = valuationRequestSchema.safeParse(payload());
     const fields: readonly string[] =
       index === null ? ownerSteps.flatMap((s) => s.fields) : ownerSteps[index]!.fields;
     const found: Record<string, string> = {};
@@ -243,8 +228,7 @@ export function OwnerRequestForm({
       return;
     }
     setSending(true);
-    const send = listing ? sendListingRequest : sendValuationRequest;
-    const res = await send(payload() as Parameters<typeof send>[0]);
+    const res = await sendValuationRequest(payload() as Parameters<typeof sendValuationRequest>[0]);
     setSending(false);
     if (res.ok) return setResult(res.data);
     const byField: Record<string, string> = {};
@@ -340,13 +324,7 @@ export function OwnerRequestForm({
                   >
                     <span className="text-[16px] font-semibold">{t.purpose[p]}</span>
                     <span className="text-[13.5px] opacity-80">
-                      {listing
-                        ? p === "sell"
-                          ? t.purpose.listingSellHint
-                          : t.purpose.listingRentHint
-                        : p === "sell"
-                          ? t.purpose.sellHint
-                          : t.purpose.rentHint}
+                      {p === "sell" ? t.purpose.sellHint : t.purpose.rentHint}
                     </span>
                   </span>
                 </label>
@@ -495,33 +473,6 @@ export function OwnerRequestForm({
                 ))}
               </div>
             </fieldset>
-            {listing && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <TextField
-                  label={
-                    draft.purpose === "rent"
-                      ? format(t.home.askingRent, {
-                          currency: options.currency.code,
-                          period: t.home.periods[options.rentPeriod],
-                        })
-                      : format(t.home.askingPrice, { currency: options.currency.code })
-                  }
-                  size="default"
-                  inputMode="decimal"
-                  value={draft.askingPrice}
-                  onChange={(e) => set("askingPrice", e.target.value)}
-                  error={errors.askingPrice}
-                />
-                <TextField
-                  label={t.home.availableFrom}
-                  size="default"
-                  type="date"
-                  value={draft.availableFrom}
-                  onChange={(e) => set("availableFrom", e.target.value)}
-                  error={errors.availableFrom}
-                />
-              </div>
-            )}
           </>
         )}
 
@@ -636,7 +587,7 @@ export function OwnerRequestForm({
               size="md"
               disabled={!hydrated || sending || (turnstileEnabled && !captcha)}
             >
-              {sending ? t.steps.sending : listing ? t.listing.submit : t.valuation.submit}
+              {sending ? t.steps.sending : t.valuation.submit}
             </Button>
           )}
         </div>

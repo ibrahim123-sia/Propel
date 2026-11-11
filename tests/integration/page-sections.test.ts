@@ -7,7 +7,6 @@ import {
   leadEvents,
   leads,
   leadTasks,
-  listingRequests,
   newsletterSubscribers,
   valuationRequests,
 } from "@/db/schema/crm";
@@ -82,14 +81,7 @@ describe("page builder sections: forms and content", () => {
       consent: true as const,
       captchaToken: "good-token",
     };
-    expect(
-      await sendPageForm({
-        ...owner,
-        formType: "list_property",
-        purpose: "rent",
-        expectedPrice: "120k",
-      }),
-    ).toMatchObject({ ok: true });
+    expect(await sendPageForm({ ...owner, formType: "valuation" })).toMatchObject({ ok: true });
     expect(
       await sendPageForm({
         formType: "valuation",
@@ -116,7 +108,7 @@ describe("page builder sections: forms and content", () => {
     expect(all.map((l) => [l.source, l.type, l.sourceDetail]).sort()).toEqual([
       ["callback", "buyer", "page form"],
       ["form", "buyer", "contact"],
-      ["listing_request", "landlord", "page form"],
+      ["valuation", "seller", "page form"],
       ["valuation", "seller", "page form"],
     ]);
     const [created] = await db
@@ -129,22 +121,17 @@ describe("page builder sections: forms and content", () => {
       body: "Do you manage rentals?",
       meta: { details: { page: "Sell with us" } },
     });
-    const [listing] = await db.select().from(listingRequests);
-    expect(listing).toMatchObject({
-      purpose: "rent",
-      building: "Marina, Tower 3",
-      beds: 2,
-      askingPrice: 12_000_000,
-      notes: "Expected price: 120k",
-    });
-    const [valuation] = await db.select().from(valuationRequests);
-    expect(valuation).toMatchObject({ purpose: "sell", building: "JVC" });
+    const valuations = await db.select().from(valuationRequests);
+    expect(valuations.map((v) => [v.building, v.beds]).sort()).toEqual([
+      ["JVC", null],
+      ["Marina, Tower 3", 2],
+    ]);
     expect(
       (await db.select({ title: leadTasks.title }).from(leadTasks)).map((x) => x.title).sort(),
     ).toEqual([
-      "Call about listing the home in Marina, Tower 3",
       "Call back (best time: after 6pm)",
       "Value the home in JVC",
+      "Value the home in Marina, Tower 3",
     ]);
 
     // The agency hears through the lead pipeline, with what was asked and where from.
@@ -156,7 +143,7 @@ describe("page builder sections: forms and content", () => {
     expect(toAgency.map((m) => m.template).sort()).toEqual([
       "lead.new",
       "lead.new",
-      "listing_request.new",
+      "valuation.new",
       "valuation.new",
     ]);
     expect(mails.filter((m) => m.to === "omar@example.com").map((m) => m.template)).toEqual([

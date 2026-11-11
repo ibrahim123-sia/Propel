@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { clearLeads, clearListings, db, setSettings, signInAsAdmin, snap } from "./helpers";
+import { clearLeads, clearListings, db, setSettings, snap } from "./helpers";
 
 const AGENCY = process.env.AGENCY_ID || "0192f000-0000-7000-8000-000000000001";
 const SQFT = 0.09290304;
@@ -99,42 +99,3 @@ test("valuation: the steps end on a range from comparable homes", async ({ page,
   expect(rows).toEqual([{ ai_range_min: "249000000", ai_range_max: "267000000" }]);
 });
 
-test("list your property: a request an admin turns into a draft listing", async ({
-  page,
-  request,
-}) => {
-  test.setTimeout(480_000);
-  await seedArea(request);
-  await page.goto("/list-your-property", { timeout: 200_000 });
-  await fillHome(page, "Rent out");
-  await page.getByRole("textbox", { name: "Asking rent per year (AED, optional)" }).fill("165000");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill("Sami Landlord");
-  await page.getByRole("textbox", { name: "Phone", exact: true }).fill("050 765 4321");
-  await page.getByRole("checkbox", { name: "I agree to be contacted about my request." }).check();
-  await page.getByRole("button", { name: "Send my property" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Thank you, we have your property" }),
-  ).toBeVisible();
-
-  const [req] = (
-    await db().query(
-      "select r.id, r.lead_id, r.asking_price, l.type from listing_requests r join leads l on l.id = r.lead_id",
-    )
-  ).rows;
-  expect(req).toMatchObject({ asking_price: "16500000", type: "landlord" });
-
-  await signInAsAdmin(page, request);
-  await page.goto(`/admin/leads/${req.lead_id}`);
-  await expect(page.getByRole("heading", { name: "List your property" })).toBeVisible();
-  await page.getByRole("button", { name: "Create draft listing" }).click();
-  await expect(page).toHaveURL(/\/admin\/properties\/[0-9a-f-]{36}/, { timeout: 120_000 });
-  const [after] = (
-    await db().query(
-      "select p.status, p.purpose, p.price from listing_requests r join properties p on p.id = r.property_id where r.id = $1",
-      [req.id],
-    )
-  ).rows;
-  expect(after).toEqual({ status: "draft", purpose: "rent", price: "16500000" });
-});

@@ -65,14 +65,12 @@ export const toolLabels: Record<SiteTool, string> = {
   rental_returns: "Rental returns",
   compare: "Compare homes",
   valuation: "Free valuation",
-  list_property: "List your property",
 };
 
 export const formTypeLabels: Record<(typeof pageFormTypes)[number], string> = {
   contact: "Contact",
   callback: "Callback request",
   valuation: "Valuation request",
-  list_property: "List your property",
   newsletter: "Newsletter signup",
 };
 

@@ -171,7 +171,7 @@ export function GeneralSettingsForm({
               />
               <TextInputField
                 label="Button link"
-                placeholder="/list-your-property"
+                placeholder="/contact"
                 maxLength={300}
                 value={value.headerButton.href}
                 onChange={(href) => set({ headerButton: { ...value.headerButton, href } })}

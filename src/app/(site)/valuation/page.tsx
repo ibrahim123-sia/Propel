@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 
 /** /valuation (11 §5): the free valuation from comparable own listings. */
 export default function ValuationPage() {
-  return <OwnerRequestPage kind="valuation" />;
+  return <OwnerRequestPage />;
 }

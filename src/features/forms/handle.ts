@@ -3,7 +3,7 @@ import { and, eq, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { currentAgencyId } from "@/db/schema/_common";
 import { pages } from "@/db/schema/cms";
-import { listingRequests, valuationRequests, type Requirements } from "@/db/schema/crm";
+import { valuationRequests, type Requirements } from "@/db/schema/crm";
 import { locations, propertyTypes } from "@/db/schema/master-data";
 import { captureLead, type LeadCapture } from "@/features/leads/capture";
 import { subscribeNewsletter } from "@/features/newsletter/subscribe";
@@ -13,15 +13,6 @@ import { enqueue } from "@/jobs/enqueue";
 import type { PageForm } from "./schema";
 
 type FormInput = Omit<PageForm, "consent" | "website" | "captchaToken">;
-
-/** "2.4M", "850k", "1,200,000" -> major units, or null. */
-export function parseAmount(text: string): number | null {
-  const m = text.replace(/[\s,]/g, "").match(/(\d+(?:\.\d+)?)(k|m|mn|million)?/i);
-  if (!m) return null;
-  const unit = (m[2] ?? "").toLowerCase();
-  const n = Number(m[1]) * (unit === "k" ? 1e3 : unit ? 1e6 : 1);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
 
 /** "Studio" is 0 bedrooms; anything else needs a number. */
 export function parseBeds(text: string): number | null {
@@ -70,7 +61,6 @@ const sources = {
   contact: "form",
   callback: "callback",
   valuation: "valuation",
-  list_property: "listing_request",
 } as const;
 
 /**
@@ -105,7 +95,7 @@ export async function handlePageForm(
     return { kind: "subscriber" };
   }
 
-  const owner = input.formType === "valuation" || input.formType === "list_property";
+  const owner = input.formType === "valuation";
   const { locationId, propertyTypeId } = owner
     ? await matchMasterData(db, input.area, input.propertyType)
     : { locationId: null, propertyTypeId: null };
@@ -126,9 +116,7 @@ export async function handlePageForm(
       ? { title: when ? `Call back (best time: ${when})` : "Call back", dueAt: new Date() }
       : input.formType === "valuation"
         ? { title: `Value the home in ${where}`, dueAt: new Date() }
-        : input.formType === "list_property"
-          ? { title: `Call about listing the home in ${where}`, dueAt: new Date() }
-          : null;
+        : null;
 
   const lead = await captureLead(db, {
     source: sources[input.formType],
@@ -174,23 +162,11 @@ export async function handlePageForm(
       notes: notes || null,
     };
     const market = await loadSettings("market", db);
-    const kind = input.formType === "valuation" ? ("valuation" as const) : ("listing" as const);
-    const amount = parseAmount(input.expectedPrice);
-    const [saved] =
-      kind === "valuation"
-        ? await db
-            .insert(valuationRequests)
-            .values({ ...row, currency: market.baseCurrency.code })
-            .returning({ id: valuationRequests.id })
-        : await db
-            .insert(listingRequests)
-            .values({
-              ...row,
-              currency: market.baseCurrency.code,
-              askingPrice:
-                amount === null ? null : Math.round(amount * 10 ** market.baseCurrency.decimals),
-            })
-            .returning({ id: listingRequests.id });
+    const kind = "valuation" as const;
+    const [saved] = await db
+      .insert(valuationRequests)
+      .values({ ...row, currency: market.baseCurrency.code })
+      .returning({ id: valuationRequests.id });
     // The owner's confirmation and the team's notice (features/valuation/notify.ts).
     await enqueue(
       OWNER_REQUEST_NOTIFY_JOB,

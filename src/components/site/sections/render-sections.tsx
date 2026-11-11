@@ -3,7 +3,6 @@ import {
   BadgeDollarSignIcon,
   CalculatorIcon,
   Columns3Icon,
-  HousePlusIcon,
   MapPinIcon,
   TrendingUpIcon,
   type LucideIcon,
@@ -352,7 +351,6 @@ const toolLinks: Record<SiteTool, { href: string; icon: LucideIcon }> = {
   rental_returns: { href: "/tools/rental-returns", icon: TrendingUpIcon },
   compare: { href: "/tools/compare", icon: Columns3Icon },
   valuation: { href: "/valuation", icon: BadgeDollarSignIcon },
-  list_property: { href: "/list-your-property", icon: HousePlusIcon },
 };
 
 /** 06 §3 item 7: cards for the agency's tools. */

@@ -16,7 +16,7 @@ const market = {
     },
   ],
 };
-const headerButton = { label: "List your property", href: "/list-your-property" };
+const headerButton = { label: "Book a viewing", href: "/contact" };
 
 test("cookie banner: first visit, necessary only, reopened from the footer", async ({
   browser,
@@ -78,9 +78,9 @@ test("header: the primary button and the currency switcher come from settings", 
   await setSettings(request, "market", market);
   await page.goto("/sign-in");
   const header = page.getByRole("banner");
-  await expect(header.getByRole("link", { name: "List your property" })).toHaveAttribute(
+  await expect(header.getByRole("link", { name: "Book a viewing" })).toHaveAttribute(
     "href",
-    "/list-your-property",
+    "/contact",
   );
   await header.getByRole("button", { name: "Currency: AED" }).click();
   await page.getByRole("menuitemradio", { name: "USD · example rate" }).click();
@@ -104,7 +104,7 @@ test("phone: the menu holds the button and the currency choice @phone", async ({
   await page.goto("/sign-in");
   await page.getByRole("button", { name: "Open menu" }).click();
   const sheet = page.getByRole("dialog");
-  await expect(sheet.getByRole("link", { name: "List your property" })).toBeVisible();
+  await expect(sheet.getByRole("link", { name: "Book a viewing" })).toBeVisible();
   await sheet.getByText("USD · example rate").click();
   await expect
     .poll(
