@@ -1,5 +1,7 @@
 import "../../../scripts/_env";
 import { parseArgs } from "node:util";
+import { and, like, ne } from "drizzle-orm";
+import { users } from "@/db/schema/auth";
 import { backfillEmbeddings } from "@/features/ai/embeddings";
 import { closeDb, getDb } from "../client";
 import { demoPresets } from "./presets";
@@ -20,6 +22,8 @@ const { values } = parseArgs({
     reset: { type: "boolean", default: false },
     /** Total listings: the preset's own, then more made in their image (extra-listings.ts). */
     listings: { type: "string" },
+    /** One login only: the owner admin; no staff, demo viewer or demo customers. */
+    "one-user": { type: "boolean", default: false },
   },
 });
 
@@ -33,7 +37,10 @@ if (values.listings && !(Number.isInteger(total) && total > 0 && total <= 1000))
   console.error("--listings takes a whole number from 1 to 1000.");
   process.exit(1);
 }
-const preset = total ? withExtraListings(chosen, total) : chosen;
+const sized = total ? withExtraListings(chosen, total) : chosen;
+const preset = values["one-user"]
+  ? { ...sized, admins: sized.admins.slice(0, 1), customers: [] }
+  : sized;
 
 try {
   const db = await getDb();
@@ -42,6 +49,15 @@ try {
     reset: values.reset,
     onProgress: (step) => console.log(`  ${step}…`),
   });
+  if (values["one-user"]) {
+    // Demo logins left by an earlier seed (staff, viewer, customers) go; real users stay.
+    const owner = preset.admins[0]!.email;
+    const removed = await db
+      .delete(users)
+      .where(and(like(users.email, "%@demo.propel"), ne(users.email, owner)))
+      .returning({ email: users.email });
+    if (removed.length) console.log(`  removed ${removed.length} other demo logins`);
+  }
   // The assistants' search index (10 §1); test embeddings unless running on Cloudflare.
   const indexed = await backfillEmbeddings(db);
   console.log(`  search index: ${indexed.indexed} indexed, ${indexed.unchanged} unchanged`);
