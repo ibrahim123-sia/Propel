@@ -6,7 +6,7 @@ import { localDataRoot } from "@/lib/local-data";
 import type { Picture } from "./images";
 
 /**
- * Real photos for the demo listings, when `pnpm seed:photos` has downloaded them (Pexels,
+ * Real photos for the demo listings, when `pnpm seed:photos` has downloaded them (CC0 photos
  * free to use; see scripts/seed-photos.ts): ~/.propel/seed-photos/<kind>/*.jpg with
  * credits.json. Without them the seed draws its placeholder scenes as before.
  */
@@ -44,7 +44,7 @@ export async function loadRealPhotos(
         height: meta.height,
         color: c.color ?? "#d8d2c8",
         alt: c.alt?.trim() || null,
-        credit: c.photographer ? `Photo: ${c.photographer} / Pexels` : null,
+        credit: c.photographer ? `Photo: ${c.photographer} (CC0)` : null,
       });
     }
     if (photos.length) out.set(kind, photos);

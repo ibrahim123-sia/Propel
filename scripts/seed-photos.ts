@@ -1,87 +1,101 @@
 import "./_env";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { localDataPath } from "./paths";
 
 /**
- * `pnpm seed:photos`: downloads real property photos from Pexels (free to use, also
- * commercially, no attribution required; https://www.pexels.com/license/) into
- * ~/.propel/seed-photos/<kind>/, with credits.json next to them. `pnpm db:seed` then uses
- * them for the demo listings instead of its drawn placeholder scenes. Needs PEXELS_API_KEY
- * (free at https://www.pexels.com/api/). The folder stays on this machine; nothing is committed.
+ * `pnpm seed:photos`: downloads real property photos into ~/.propel/seed-photos/<kind>/, with
+ * credits.json next to them, for `pnpm db:seed` to use instead of its drawn placeholder scenes.
+ *
+ * Source: Openverse (https://openverse.org, no API key needed), limited to CC0 photos from
+ * StockSnap and rawpixel: free to use, also commercially, no attribution required. The
+ * photographer is still kept in credits.json and in each photo's caption. The folder stays on
+ * this machine; nothing is committed.
  */
 
 export const photoKinds = {
-  living: ["modern living room interior", "luxury apartment living room"],
-  bedroom: ["modern bedroom interior", "hotel style master bedroom"],
-  kitchen: ["modern kitchen interior", "luxury kitchen island"],
-  bathroom: ["modern bathroom interior", "luxury bathroom"],
-  tower: ["residential tower building", "modern apartment building exterior"],
-  villa: ["modern villa exterior", "luxury house exterior"],
-  pool: ["infinity pool residence", "villa swimming pool"],
-  office: ["modern office interior", "empty office space"],
-  land: ["empty land plot", "vacant land for construction"],
+  living: ["modern living room interior", "apartment living room", "luxury living room"],
+  bedroom: ["modern bedroom interior", "bedroom interior design", "master bedroom"],
+  kitchen: ["modern kitchen interior", "kitchen interior design", "white kitchen"],
+  bathroom: ["modern bathroom interior", "bathroom interior design"],
+  tower: ["apartment building", "residential building exterior", "modern apartment building"],
+  villa: ["luxury house exterior", "modern house exterior", "villa house"],
+  pool: ["swimming pool house", "infinity pool", "outdoor swimming pool"],
+  office: ["modern office interior", "office space interior"],
+  land: ["empty land", "vacant lot", "desert land"],
 } as const;
 export type PhotoKind = keyof typeof photoKinds;
 
-const PER_QUERY = 14;
+const SOURCES = "stocksnap,rawpixel";
+const PER_KIND = Number(process.env.SEED_PHOTOS_PER_KIND ?? 24);
+const UA = "Propel-seed/1.0 (demo data for a real estate website)";
 
-type PexelsPhoto = {
-  id: number;
-  width: number;
-  height: number;
+type Result = {
+  id: string;
+  title: string | null;
   url: string;
-  photographer: string;
-  photographer_url: string;
-  alt: string | null;
-  avg_color: string | null;
-  src: { original: string };
+  width: number | null;
+  height: number | null;
+  creator: string | null;
+  creator_url: string | null;
+  license: string;
+  source: string;
+  foreign_landing_url: string;
 };
 
-const key = process.env.PEXELS_API_KEY;
-if (!key) {
-  console.error("[photos] set PEXELS_API_KEY in .env.local (free at https://www.pexels.com/api/).");
-  process.exit(1);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function search(query: string): Promise<Result[]> {
+  const url =
+    `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}` +
+    `&license=cc0,pdm&source=${SOURCES}&aspect_ratio=wide&page_size=20`;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch(url, {
+      headers: { "user-agent": UA },
+      signal: AbortSignal.timeout(60_000),
+    }).catch(() => null);
+    if (res?.ok) return ((await res.json()) as { results: Result[] }).results;
+    // Openverse limits anonymous use and is sometimes slow: wait and ask again.
+    await sleep(5_000 * (attempt + 1));
+  }
+  console.warn(`[photos] no answer from Openverse for "${query}"`);
+  return [];
 }
 
 const root = process.env.SEED_PHOTOS_DIR ?? localDataPath("seed-photos");
 let total = 0;
 for (const [kind, queries] of Object.entries(photoKinds)) {
   const dir = join(root, kind);
+  await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
   const credits: Array<Record<string, unknown>> = [];
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   for (const query of queries) {
-    const res = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${PER_QUERY}&orientation=landscape&size=large`,
-      { headers: { Authorization: key }, signal: AbortSignal.timeout(30_000) },
-    );
-    if (!res.ok) {
-      console.error(`[photos] Pexels answered ${res.status} for "${query}"`);
-      process.exit(1);
-    }
-    const { photos } = (await res.json()) as { photos: PexelsPhoto[] };
-    for (const p of photos) {
-      if (seen.has(p.id)) continue;
-      seen.add(p.id);
-      // 1600 px wide JPEG: big enough for the gallery, small enough to seed quickly.
-      const img = await fetch(`${p.src.original}?auto=compress&cs=tinysrgb&w=1600`, {
+    if (credits.length >= PER_KIND) break;
+    for (const r of await search(query)) {
+      if (credits.length >= PER_KIND) break;
+      if (seen.has(r.id) || (r.width ?? 0) < 900) continue;
+      seen.add(r.id);
+      const img = await fetch(r.url, {
+        headers: { "user-agent": `Mozilla/5.0 ${UA}` },
         signal: AbortSignal.timeout(60_000),
-      });
-      if (!img.ok) continue;
-      const file = `${p.id}.jpg`;
-      await writeFile(join(dir, file), new Uint8Array(await img.arrayBuffer()));
+      }).catch(() => null);
+      if (!img?.ok || !(img.headers.get("content-type") ?? "").startsWith("image/")) continue;
+      const bytes = new Uint8Array(await img.arrayBuffer());
+      if (bytes.byteLength < 20_000) continue;
+      const file = `${r.id}.jpg`;
+      await writeFile(join(dir, file), bytes);
       credits.push({
         file,
-        id: p.id,
-        alt: p.alt || null,
-        color: p.avg_color,
-        photographer: p.photographer,
-        photographerUrl: p.photographer_url,
-        source: p.url,
-        license: "Pexels License",
+        alt: r.title?.replace(/^Free\s+/i, "").trim() || null,
+        photographer: r.creator,
+        photographerUrl: r.creator_url,
+        source: r.foreign_landing_url,
+        license: r.license.toUpperCase(),
+        via: r.source,
       });
     }
+    await sleep(1_500);
   }
   await writeFile(join(dir, "credits.json"), JSON.stringify(credits, null, 2));
   total += credits.length;
