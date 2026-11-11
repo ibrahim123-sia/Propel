@@ -458,12 +458,12 @@
 }
 
 /*
- * Dark sections (section style "ink"): headings and muted text turn light, while white cards
+ * Dark sections (section style "ink" or "image"): headings and muted text turn light, while white cards
  * inside (listing and project cards) keep dark text. On dark backgrounds the accent is too dark
  * for small text (2.96:1), so eyebrows use its tint.
  */
 .section-dark
-  :is(.text-ink, .text-text-muted, .text-eyebrow):not(
+  :is(h1, h2, h3, h4, h5, h6, .text-ink, .text-text-muted, .text-eyebrow):not(
     :is(.bg-surface, .bg-surface *, [class*="bg-surface/"], [class*="bg-surface/"] *)
   ) {
   color: var(--color-surface);

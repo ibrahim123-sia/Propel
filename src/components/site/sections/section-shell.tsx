@@ -10,7 +10,7 @@ const backgrounds: Record<SectionStyle["background"], string> = {
   // Light text on the dark background; white cards inside keep their own colours
   // (section-dark in globals.css).
   ink: "section-dark bg-ink text-surface",
-  image: "bg-ink text-surface [&_.text-eyebrow]:text-accent-soft",
+  image: "section-dark bg-ink text-surface",
 };
 
 const spacing: Record<SectionStyle["spacing"], string> = {
