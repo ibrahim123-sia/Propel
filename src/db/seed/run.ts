@@ -211,8 +211,9 @@ function isConnectionError(err: unknown): boolean {
   for (let e: unknown = err; e && !seen.has(e); e = (e as { cause?: unknown }).cause) {
     seen.add(e);
     const { code, message } = e as { code?: string; message?: string };
-    if (code === "ECONNRESET" || code === "ETIMEDOUT" || code === "EPIPE" || code === "57P01")
-      return true;
+    // Dropped connections, and the network gone for a moment (no DNS, refused).
+    const network = ["ECONNRESET", "ETIMEDOUT", "EPIPE", "ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED"];
+    if ((code && network.includes(code)) || code === "57P01") return true;
     if (/connection (error|terminated)|not queryable|Connection terminated/i.test(message ?? ""))
       return true;
   }
@@ -220,7 +221,7 @@ function isConnectionError(err: unknown): boolean {
 }
 
 /** Each listing is its own transaction, so a dropped connection just means asking again. */
-async function withRetry<T>(run: () => Promise<T>, what: string, attempts = 5): Promise<T> {
+async function withRetry<T>(run: () => Promise<T>, what: string, attempts = 8): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
       return await run();
