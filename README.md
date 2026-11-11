@@ -250,6 +250,9 @@ only allows in Developer Mode.
    `DATABASE_URL=<neon url> pnpm admin:create --email you@agency.com`, then sign in at
    `/admin`, set up two-step verification and fill in Settings (general, market, contact,
    integrations). Optionally load a demo with `pnpm db:seed --preset=haven-dune`.
+   Run migrations and seeds from your machine against Neon's **direct** endpoint (the host
+   without `-pooler`): the pooled endpoint drops long-running connections, which ends a
+   seed half way with `ECONNRESET`. The app itself can use either.
 6. AI: pick the provider and backup in Settings → Integrations and paste their keys there, or
    set them as Worker secrets (`wrangler secret put GROQ_API_KEY --env staging`). The search
    index uses Workers AI (the `AI` binding), chosen in the same screen.

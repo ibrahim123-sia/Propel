@@ -33,8 +33,14 @@ function nodeDb(): Db {
     connectionString: url,
     max: Number(process.env.DB_POOL_MAX ?? 5),
     idleTimeoutMillis: 30_000,
+    // A remote database (Neon) behind NAT drops quiet connections; keep-alives keep them open.
+    keepAlive: true,
   });
   pool.on("error", (err) => console.error("[db] idle client error", err.message));
+  // A connection lost while in use fails its query; without a listener it would end the process.
+  pool.on("connect", (client) =>
+    client.on("error", (err) => console.error("[db] client error", err.message)),
+  );
   globalThis.__propelPool = pool;
   globalThis.__propelDb = createDb(pool);
   return globalThis.__propelDb;
