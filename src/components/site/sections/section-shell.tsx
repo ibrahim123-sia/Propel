@@ -7,8 +7,9 @@ const backgrounds: Record<SectionStyle["background"], string> = {
   sand: "bg-bg",
   white: "bg-surface",
   soft: "bg-surface-soft",
-  // On dark backgrounds the accent is too dark for small text (2.96:1): eyebrows use its tint.
-  ink: "bg-ink text-surface [&_.text-ink]:text-surface [&_.text-text-muted]:text-surface/75 [&_.text-eyebrow]:text-accent-soft",
+  // Light text on the dark background; white cards inside keep their own colours
+  // (section-dark in globals.css).
+  ink: "section-dark bg-ink text-surface",
   image: "bg-ink text-surface [&_.text-eyebrow]:text-accent-soft",
 };
 

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { resolveMapStyle } from "@/components/maps/map-style";
 import { PaymentPlanView } from "@/components/payment-plan/plan-view";
 import { Breadcrumb } from "@/components/site/breadcrumb";
+import { StickyAside } from "@/components/site/sticky-aside";
 import { JsonLd } from "@/components/site/json-ld";
 import { ContactCard } from "@/components/site/contact-card";
 import { BookTourButton } from "@/components/site/viewings/book-tour-button";
@@ -137,6 +138,17 @@ export default async function ProjectPage(props: PageProps<"/projects/[slug]">) 
           baseUrl={siteOrigin()}
         />
         <JsonLd data={projectStructuredData(p, market, siteOrigin(), projectDescription(p))} />
+        {cover && (
+          <MediaImage
+            src={cover.url}
+            alt={cover.alt}
+            sizes="(min-width: 1280px) 1200px, 100vw"
+            aspect="2 / 1"
+            color={cover.color}
+            priority
+            className="rounded-[24px]"
+          />
+        )}
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-surface px-3 py-1 text-[12.5px] font-semibold text-ink shadow-soft">
@@ -166,17 +178,6 @@ export default async function ProjectPage(props: PageProps<"/projects/[slug]">) 
             </p>
           )}
         </header>
-        {cover && (
-          <MediaImage
-            src={cover.url}
-            alt={cover.alt}
-            sizes="(min-width: 1280px) 1200px, 100vw"
-            aspect="16 / 9"
-            color={cover.color}
-            priority
-            className="rounded-[24px]"
-          />
-        )}
       </div>
 
       <div className="container-site mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -573,22 +574,24 @@ export default async function ProjectPage(props: PageProps<"/projects/[slug]">) 
           )}
         </div>
 
-        <aside className="flex flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
-          <BookTourButton
-            projectId={p.id}
-            subject={p.name}
-            agentName={(await getSettings("general")).agencyName}
-          />
-          <ContactCard
-            id="contact"
-            entity={{ type: "project", id: p.id }}
-            subject={p.name}
-            pageUrl={siteUrl(`/projects/${p.slug}`)}
-            whatsapp={contact.whatsapp}
-            phone={contact.phone}
-            email={contact.email}
-          />
-        </aside>
+        <StickyAside>
+          <aside className="flex flex-col gap-3">
+            <BookTourButton
+              projectId={p.id}
+              subject={p.name}
+              agentName={(await getSettings("general")).agencyName}
+            />
+            <ContactCard
+              id="contact"
+              entity={{ type: "project", id: p.id }}
+              subject={p.name}
+              pageUrl={siteUrl(`/projects/${p.slug}`)}
+              whatsapp={contact.whatsapp}
+              phone={contact.phone}
+              email={contact.email}
+            />
+          </aside>
+        </StickyAside>
       </div>
 
       {p.similar.length > 0 && (

@@ -227,6 +227,7 @@ export const havenDunePages: SeedPagesCopy = {
             showForm: true,
             formHeading: "Send us a message",
           },
+          style: { background: "white", spacing: "compact" },
         },
       ],
     },

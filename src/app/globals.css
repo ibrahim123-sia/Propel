@@ -179,9 +179,9 @@
 }
 
 @utility section-y {
-  padding-block: 64px;
+  padding-block: 56px;
   @media (width >= 64rem) {
-    padding-block: 104px;
+    padding-block: 80px;
   }
 }
 
@@ -455,4 +455,25 @@
   height: 0;
   color: var(--color-text-muted);
   pointer-events: none;
+}
+
+/*
+ * Dark sections (section style "ink"): headings and muted text turn light, while white cards
+ * inside (listing and project cards) keep dark text. On dark backgrounds the accent is too dark
+ * for small text (2.96:1), so eyebrows use its tint.
+ */
+.section-dark
+  :is(.text-ink, .text-text-muted, .text-eyebrow):not(
+    :is(.bg-surface, .bg-surface *, [class*="bg-surface/"], [class*="bg-surface/"] *)
+  ) {
+  color: var(--color-surface);
+}
+.section-dark .text-text-muted:not(:is(.bg-surface, .bg-surface *)) {
+  color: color-mix(in oklab, var(--color-surface) 75%, transparent);
+}
+.section-dark .text-eyebrow:not(:is(.bg-surface, .bg-surface *)) {
+  color: var(--color-accent-soft);
+}
+.section-dark .bg-surface:not([class*="text-"]) {
+  color: var(--color-text);
 }

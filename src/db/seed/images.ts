@@ -251,17 +251,21 @@ export async function portrait(initials: string, color: string): Promise<Picture
 
 /** Wordmark logo on a transparent background. */
 export async function logo(name: string, color: string): Promise<Picture> {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="240">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="240">
     <rect x="20" y="60" width="120" height="120" rx="28" fill="${color}"/>
     <text x="80" y="148" font-family="Georgia, serif" font-size="80" fill="#ffffff" text-anchor="middle">${name.charAt(0)}</text>
     <text x="170" y="145" font-family="Georgia, serif" font-size="56" fill="#14232b">${name.replace(/&/g, "&amp;")}</text>
   </svg>`;
-  const bytes = await sharp(Buffer.from(svg)).png().toBuffer();
+  // Trimmed to the mark and the name: the header shows the logo 36 px tall, so empty margins
+  // would shrink the name to a few pixels.
+  const { data, info } = await sharp(Buffer.from(svg)).trim().png().toBuffer({
+    resolveWithObject: true,
+  });
   return {
-    bytes: new Uint8Array(bytes),
+    bytes: new Uint8Array(data),
     mime: "image/png",
-    width: 720,
-    height: 240,
+    width: info.width,
+    height: info.height,
     color: "#ffffff",
   };
 }

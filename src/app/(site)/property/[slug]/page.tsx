@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { Badge } from "@/components/site/badge-chip";
 import { Breadcrumb, type Crumb } from "@/components/site/breadcrumb";
+import { StickyAside } from "@/components/site/sticky-aside";
 import { JsonLd } from "@/components/site/json-ld";
 import { ListingCard, type CardContext } from "@/components/site/listings/listing-card";
 import { PaymentPlanView } from "@/components/payment-plan/plan-view";
@@ -205,6 +206,8 @@ export default async function PropertyPage(props: PageProps<"/property/[slug]">)
         <Breadcrumb items={crumbs} baseUrl={appUrl()} />
         <JsonLd data={listingStructuredData(l, market, appUrl())} />
 
+        <Gallery listing={l} />
+
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-2">
             {l.badges.length > 0 && (
@@ -232,8 +235,6 @@ export default async function PropertyPage(props: PageProps<"/property/[slug]">)
 
         <StatusBanner listing={l} />
         {gone && similarSection}
-
-        <Gallery listing={l} />
 
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="flex min-w-0 flex-col gap-10">
@@ -324,9 +325,9 @@ export default async function PropertyPage(props: PageProps<"/property/[slug]">)
             )}
             <ProjectBlock listing={l} />
           </div>
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <StickyAside>
             <ContactCard listing={l} ctx={ctx} info={info} agencyName={general.agencyName} />
-          </div>
+          </StickyAside>
         </div>
 
         {!gone && similarSection}
