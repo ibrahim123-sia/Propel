@@ -116,6 +116,7 @@ export const sampleValues: Record<string, string> = {
   count: "3",
   period: "this week",
   title: "Two bed with a garden view",
+  saved: "Two bed with a marina view",
   price: "2,350,000",
   drop: "100,000",
   status: "reserved",

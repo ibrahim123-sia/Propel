@@ -10,11 +10,13 @@ export default async function AlertsUnsubscribedPage(props: PageProps<"/alerts/u
   const kind = typeof sp.kind === "string" ? sp.kind : null;
   const message = search
     ? `You won't get alerts for “${search}” any more.`
-    : kind === "priceDrop"
-      ? "You won't get price drop emails for your saved homes any more."
-      : kind === "statusChange"
-        ? "You won't get emails when your saved homes are reserved, sold or rented."
-        : "This link no longer works. You can manage your alerts in your account.";
+    : kind === "newMatch"
+      ? "You won't get emails about new homes any more."
+      : kind === "priceDrop"
+        ? "You won't get price drop emails for your saved homes any more."
+        : kind === "statusChange"
+          ? "You won't get emails when your saved homes are reserved, sold or rented."
+          : "This link no longer works. You can manage your alerts in your account.";
   return (
     <div className="container-site flex max-w-xl flex-col gap-4 py-12">
       <h1 className="text-h2 text-ink">{kind === "invalid" ? "Alerts" : "Unsubscribed"}</h1>

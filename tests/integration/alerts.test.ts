@@ -190,8 +190,8 @@ describe("alerts (12 §3)", () => {
     });
     const usd = await listing(db, ids, { price: 50_000_000, currency: "USD" });
 
-    expect(await alertNewListing(db, usd, now)).toEqual({ matched: 2, sent: 2 });
-    expect(await alertNewListing(db, usd, now)).toEqual({ matched: 2, sent: 0 });
+    expect(await alertNewListing(db, usd, now)).toEqual({ matched: 2, sent: 2, similar: 0 });
+    expect(await alertNewListing(db, usd, now)).toEqual({ matched: 2, sent: 0, similar: 0 });
     const sent = await mails(db);
     expect(sent.map((m) => [m.to, m.template]).sort()).toEqual([
       ["rania@example.com", "alerts.new_match"],
@@ -322,6 +322,45 @@ describe("alerts (12 §3)", () => {
     ).toEqual({
       skipped: "not a live price drop",
     });
+  });
+
+  it("a new listing like a saved home reaches its saver once, unless a search told them", async () => {
+    const { db, ids } = await world();
+    const saved = await listing(db, ids, { title: "Marina two bed" });
+    await save(db, ids.sam, saved);
+    await save(db, ids.rania, saved);
+    await search(db, ids.rania, { name: "Rania marina", filters: { loc: ["dubai-marina"] } });
+    // Too dear, another area, another purpose: not like it.
+    for (const other of [
+      { price: 300_000_000 },
+      { locationId: ids.downtown },
+      { purpose: "rent" as const, pricePeriod: "year" as const },
+    ])
+      expect(await alertNewListing(db, await listing(db, ids, other), now)).toMatchObject({
+        similar: 0,
+      });
+    await db.delete(emailLog);
+
+    const like = await listing(db, ids, { title: "Marina two bed, higher floor", beds: 3 });
+    expect(await alertNewListing(db, like, now)).toMatchObject({ sent: 1, similar: 1 });
+    expect(await alertNewListing(db, like, now)).toMatchObject({ similar: 0 });
+    const sent = await mails(db);
+    expect(sent.map((m) => [m.to, m.template]).sort()).toEqual([
+      ["rania@example.com", "alerts.new_match"],
+      ["sam@example.com", "alerts.similar_home"],
+    ]);
+    const sam = sent.find((m) => m.to === "sam@example.com")!;
+    expect(sam.subject).toBe(
+      "New on the market, like Marina two bed: Marina two bed, higher floor",
+    );
+    expect(sam.text).toContain("AED 2,000,000");
+    expect(sam.text).toMatch(/unsubscribe\?pref=/);
+
+    // Switched off in the customer's preferences: nothing.
+    await db
+      .insert(customerPreferences)
+      .values({ userId: ids.sam, newMatch: { email: false, whatsapp: false } });
+    expect(await alertNewListing(db, await listing(db, ids), now)).toMatchObject({ similar: 0 });
   });
 
   it("status changes reach the savers once; preferences and WhatsApp opt-in are respected", async () => {

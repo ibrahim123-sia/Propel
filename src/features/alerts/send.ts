@@ -18,7 +18,7 @@ import {
   type PreferenceKind,
 } from "./tokens";
 
-export type AlertKind = "new_match" | "price_drop" | "status_change";
+export type AlertKind = "new_match" | "price_drop" | "status_change" | "similar_home";
 type Channels = { email: boolean; whatsapp: boolean };
 type Preferences = Record<"newMatch" | "priceDrop" | "statusChange", Channels> & {
   whatsappOptIn: boolean;
@@ -235,9 +235,15 @@ export async function sendSearchAlert(
   return fresh.length;
 }
 
+const homeAlerts = {
+  price_drop: { pref: "priceDrop", key: "alerts.price_drop", stop: "Stop price drop emails" },
+  status_change: { pref: "statusChange", key: "alerts.status_change", stop: "Stop status emails" },
+  similar_home: { pref: "newMatch", key: "alerts.similar_home", stop: "Stop new home emails" },
+} as const satisfies Record<string, { pref: PreferenceKind; key: TemplateKey; stop: string }>;
+
 /**
- * One saved home (or one matching instant search) about one listing: a price drop or a
- * status change. `detail` (the new price or status) makes a later change send again while
+ * One saved home (or one matching instant search) about one listing: a price drop, a status
+ * change, or a new listing like the saved one. `detail` (the new price or status) makes a later change send again while
  * the same change never sends twice.
  */
 export async function sendHomeAlert(
@@ -247,7 +253,7 @@ export async function sendHomeAlert(
     savedHomeId?: string | null;
     savedSearchId?: string | null;
     propertyId: string;
-    kind: "price_drop" | "status_change";
+    kind: keyof typeof homeAlerts;
     detail: string;
     note: string;
     vars: Record<string, string | number | null>;
@@ -262,7 +268,7 @@ export async function sendHomeAlert(
     savedHomeId: input.savedHomeId ?? null,
   };
   const prefs = await alertPreferences(db, input.to.userId);
-  const pref: PreferenceKind = input.kind === "price_drop" ? "priceDrop" : "statusChange";
+  const { pref, key, stop } = homeAlerts[input.kind];
   const channels = prefs[pref];
   if (!channels.email && !(channels.whatsapp && prefs.whatsappOptIn)) return false;
   if ((await notYetSent(db, target, [input.propertyId], input.kind, input.detail)).length === 0)
@@ -276,8 +282,6 @@ export async function sendHomeAlert(
     : siteUrl(
         `/api/alerts/unsubscribe?pref=${await preferenceUnsubscribeToken(input.to.userId, pref)}`,
       );
-  const key: TemplateKey =
-    input.kind === "price_drop" ? "alerts.price_drop" : "alerts.status_change";
   const url = siteUrl(input.path);
   const prepared = await prepare(db, {
     to: input.to,
@@ -290,11 +294,7 @@ export async function sendHomeAlert(
     link: url,
     manageUrl: siteUrl(target.savedSearchId ? "/account/searches" : "/account/notifications"),
     unsubscribeUrl,
-    unsubscribeLabel: target.savedSearchId
-      ? "Stop alerts for this search"
-      : input.kind === "price_drop"
-        ? "Stop price drop emails"
-        : "Stop status emails",
+    unsubscribeLabel: target.savedSearchId ? "Stop alerts for this search" : stop,
   });
   try {
     await db.transaction(async (tx) => {

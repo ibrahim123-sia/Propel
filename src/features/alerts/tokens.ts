@@ -21,7 +21,8 @@ export async function searchUnsubscribeToken(searchId: string): Promise<string> 
 
 export const unsubscribeTokenHash = (token: string) => sha256Hex(token);
 
-export type PreferenceKind = "priceDrop" | "statusChange";
+export type PreferenceKind = "newMatch" | "priceDrop" | "statusChange";
+const preferenceKinds: readonly string[] = ["newMatch", "priceDrop", "statusChange"];
 
 /** Unsubscribe from one kind of saved-home alert (no search to switch off): a signed token. */
 export function preferenceUnsubscribeToken(userId: string, kind: PreferenceKind) {
@@ -32,6 +33,6 @@ export async function readPreferenceToken(
   token: string,
 ): Promise<{ userId: string; kind: PreferenceKind } | null> {
   const payload = await verifyToken<{ u: string; k: string }>("alerts-preference", token);
-  if (!payload || (payload.k !== "priceDrop" && payload.k !== "statusChange")) return null;
-  return { userId: payload.u, kind: payload.k };
+  if (!payload || !preferenceKinds.includes(payload.k)) return null;
+  return { userId: payload.u, kind: payload.k as PreferenceKind };
 }

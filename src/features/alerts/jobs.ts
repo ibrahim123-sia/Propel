@@ -11,7 +11,7 @@ import { searchableStatuses, statusLabels } from "@/features/properties/status";
 import { loadSettings } from "@/features/settings/queries";
 import { defineJob } from "@/jobs/types";
 import { formatMoney } from "@/lib/money";
-import { alertSearches, newMatches, searchesMatching } from "./match";
+import { alertSearches, newMatches, savedHomesLike, searchesMatching } from "./match";
 import { sendHomeAlert, sendSearchAlert } from "./send";
 
 async function listingFor(db: Db, propertyId: string) {
@@ -56,12 +56,52 @@ export async function alertNewListing(db: Db, propertyId: string, now = new Date
   const searches = await alertSearches(db, ["instant"]);
   const matched = await searchesMatching(db, propertyId, searches);
   let sent = 0;
+  const told = new Set<string>();
   for (const search of searches.filter((s) => matched.has(s.id))) {
     const since = search.lastSentAt ?? search.createdAt;
     const others = await newMatches(db, search, since);
+    // Their search tells them (now, or did already): no second email about the same listing.
+    told.add(search.userId);
     if (await sendSearchAlert(db, search, [propertyId, ...others], "instant", now)) sent++;
   }
-  return { matched: matched.size, sent };
+  // People who saved a home like this one hear about it too, once, unless a search tells them.
+  const similar = await alertSimilarHomes(db, listing, told, now);
+  return { matched: matched.size, sent, similar };
+}
+
+async function alertSimilarHomes(
+  db: Db,
+  listing: NonNullable<Awaited<ReturnType<typeof listingFor>>>,
+  told: Set<string>,
+  now: Date,
+) {
+  const saves = await savedHomesLike(db, listing.id);
+  if (saves.length === 0) return 0;
+  const [row] = await db
+    .select({ price: properties.price, currency: properties.currency })
+    .from(properties)
+    .where(eq(properties.id, listing.id));
+  const market = await loadSettings("market", db);
+  const fmt = formatFor(row!.currency ?? "", currencyFormats(market));
+  const price = row!.price == null ? "" : formatMoney(row!.price, fmt);
+  let sent = 0;
+  for (const s of saves) {
+    if (told.has(s.userId)) continue;
+    told.add(s.userId);
+    const ok = await sendHomeAlert(db, {
+      to: s,
+      savedHomeId: s.savedHomeId,
+      propertyId: listing.id,
+      kind: "similar_home",
+      detail: "",
+      note: `Like ${s.savedTitle}`,
+      vars: { title: listing.title, saved: s.savedTitle, price },
+      path: `/property/${listing.slug}`,
+      now,
+    });
+    if (ok) sent++;
+  }
+  return sent;
 }
 
 /** Daily (06:00 agency time) and weekly (Monday 06:00) digests of new matches. */

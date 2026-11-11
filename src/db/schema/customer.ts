@@ -107,7 +107,7 @@ export const alertsSent = pgTable(
     propertyId: uuid()
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
-    kind: text({ enum: ["new_match", "price_drop", "status_change"] }).notNull(),
+    kind: text({ enum: ["new_match", "price_drop", "status_change", "similar_home"] }).notNull(),
     /** For price drops and status changes: what changed, so a later change sends again. */
     detail: text().notNull().default(""),
     sentAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

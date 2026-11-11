@@ -280,6 +280,17 @@ export const templateDefaults = {
     },
     whatsapp: { body: "{{homes}} {{period}} for “{{search}}”: {{url}}" },
   },
+  "alerts.similar_home": {
+    audience: "customer",
+    label: "A new home like one the customer saved (alerts)",
+    variables: ["name", "title", "saved", "price", "url"],
+    email: {
+      subject: "New on the market, like {{saved}}: {{title}}",
+      body: "Hello {{name}},\n\n{{title}} just came on the market at {{price}}. It is a lot like {{saved}}, which you saved.",
+      button: "See the home",
+    },
+    whatsapp: { body: "A new home like {{saved}}: {{title}}, {{price}}: {{url}}" },
+  },
   "alerts.price_drop": {
     audience: "customer",
     label: "A saved or matching home dropped in price (alerts)",

@@ -92,6 +92,48 @@ export async function searchesMatching(
   return matched;
 }
 
+/** A saved home like a new listing, with what the alert needs about its owner. */
+export type SimilarSave = {
+  savedHomeId: string;
+  userId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  savedTitle: string;
+};
+
+/**
+ * Saved homes a new listing is like: same purpose and type, the same place (the same location,
+ * one inside the other, or neighbours in one community or area, not just the same city), a
+ * price within a quarter either way in the same currency and period, and at most one bedroom
+ * apart. The listing itself and deleted saved listings are left out; active accounts only.
+ */
+export async function savedHomesLike(db: DbOrTx, propertyId: string): Promise<SimilarSave[]> {
+  const res = await db.execute<SimilarSave>(sql`
+    select sh.id as "savedHomeId", u.id as "userId", u.name, u.email, u.phone,
+           sp.title as "savedTitle"
+    from properties np
+    join locations nl on nl.id = np.location_id
+    join properties sp on sp.agency_id = np.agency_id and sp.id <> np.id
+      and sp.deleted_at is null
+      and sp.purpose = np.purpose
+      and sp.property_type_id = np.property_type_id
+      and sp.currency = np.currency
+      and sp.price_period is not distinct from np.price_period
+      and np.price between sp.price * 0.75 and sp.price * 1.25
+      and (sp.beds is null or np.beds is null or abs(sp.beds - np.beds) <= 1)
+    join locations sl on sl.id = sp.location_id
+    left join locations shared on shared.id = sl.parent_id and shared.id = nl.parent_id
+    join saved_homes sh on sh.property_id = sp.id
+    join users u on u.id = sh.user_id and u.is_active
+    where np.id = ${propertyId} and np.agency_id = ${currentAgencyId()}
+      and not np.price_on_request and not sp.price_on_request
+      and (sl.id = nl.id or sl.parent_id = nl.id or nl.parent_id = sl.id
+        or shared.level in ('area', 'community'))
+    order by sh.created_at`);
+  return res.rows;
+}
+
 /**
  * Listings that match a search, went live after `since` and were never alerted for it,
  * newest first.

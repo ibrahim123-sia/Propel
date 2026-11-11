@@ -151,7 +151,7 @@ export const account = {
   notificationsPage: {
     title: "Notifications",
     intro: "Choose how we tell you about new homes and changes to homes you saved.",
-    newMatch: "New homes for my saved searches",
+    newMatch: "New homes for my saved searches, and homes like ones I saved",
     priceDrop: "Price drops",
     statusChange: "A saved home is reserved, sold or rented",
     email: "Email",

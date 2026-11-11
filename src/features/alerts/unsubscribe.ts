@@ -3,10 +3,10 @@ import { and, eq } from "drizzle-orm";
 import type { DbOrTx } from "@/db/client";
 import { currentAgencyId } from "@/db/schema/_common";
 import { customerPreferences, savedSearches } from "@/db/schema/customer";
-import { readPreferenceToken, unsubscribeTokenHash } from "./tokens";
+import { readPreferenceToken, unsubscribeTokenHash, type PreferenceKind } from "./tokens";
 
 export type UnsubscribeResult =
-  { kind: "search"; name: string } | { kind: "priceDrop" | "statusChange" } | { kind: "invalid" };
+  { kind: "search"; name: string } | { kind: PreferenceKind } | { kind: "invalid" };
 
 /**
  * One-click unsubscribe (12 §3) from an alert email: `token` switches one saved search off,
