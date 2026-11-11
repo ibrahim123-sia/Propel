@@ -205,6 +205,33 @@ function listingDescription(
   ]);
 }
 
+/** A dropped connection (a remote database over a long seed), not a data error. */
+function isConnectionError(err: unknown): boolean {
+  const seen = new Set<unknown>();
+  for (let e: unknown = err; e && !seen.has(e); e = (e as { cause?: unknown }).cause) {
+    seen.add(e);
+    const { code, message } = e as { code?: string; message?: string };
+    if (code === "ECONNRESET" || code === "ETIMEDOUT" || code === "EPIPE" || code === "57P01")
+      return true;
+    if (/connection (error|terminated)|not queryable|Connection terminated/i.test(message ?? ""))
+      return true;
+  }
+  return false;
+}
+
+/** Each listing is its own transaction, so a dropped connection just means asking again. */
+async function withRetry<T>(run: () => Promise<T>, what: string, attempts = 5): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run();
+    } catch (err) {
+      if (attempt >= attempts || !isConnectionError(err)) throw err;
+      console.warn(`  connection lost on ${what}, trying again (${attempt}/${attempts - 1})`);
+      await new Promise((r) => setTimeout(r, 2_000 * attempt));
+    }
+  }
+}
+
 /**
  * Seeds a preset (16 §1). `reset` empties the demo tables first; without it the database must
  * have no listings yet. Deterministic: the same preset gives the same data.
@@ -598,7 +625,7 @@ export async function seedPreset(
   progress("Listings");
   const listingIds: string[] = [];
   for (const [index, spec] of preset.listings.entries()) {
-    const id = await seedListing(db, spec, index);
+    const id = await withRetry(() => seedListing(db, spec, index), `listing ${index + 1}`);
     listingIds.push(id);
     if ((index + 1) % 10 === 0 || index + 1 === preset.listings.length)
       progress(`Listings ${index + 1}/${preset.listings.length}`);

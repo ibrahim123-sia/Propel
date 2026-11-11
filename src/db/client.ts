@@ -35,6 +35,8 @@ function nodeDb(): Db {
     idleTimeoutMillis: 30_000,
     // A remote database (Neon) behind NAT drops quiet connections; keep-alives keep them open.
     keepAlive: true,
+    // The OS default waits hours before the first probe (2 h on Windows): too late.
+    keepAliveInitialDelayMillis: 10_000,
   });
   pool.on("error", (err) => console.error("[db] idle client error", err.message));
   // A connection lost while in use fails its query; without a listener it would end the process.
