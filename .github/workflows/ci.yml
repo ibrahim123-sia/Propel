@@ -141,3 +141,41 @@ jobs:
         run: pnpm exec opennextjs-cloudflare build && pnpm exec opennextjs-cloudflare deploy --env staging -- --keep-vars
       - name: Smoke test
         run: curl --fail --retry 5 --retry-delay 5 "${{ vars.STAGING_APP_URL }}/api/health"
+
+  deploy-production:
+    name: Deploy production (Cloudflare)
+    needs: [check, e2e, workers-build]
+    # Turned on by the repository variable DEPLOY_PRODUCTION=true once the production
+    # Cloudflare resources and secrets exist (see README "Deployment").
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_PRODUCTION == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Direct (non-Hyperdrive) URL: migrations and build-time prerendering.
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      APP_URL: ${{ vars.PRODUCTION_APP_URL }}
+      BETTER_AUTH_URL: ${{ vars.PRODUCTION_APP_URL }}
+      PROPEL_ENV: production
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply database migrations
+        run: pnpm db:migrate
+      - name: Fill in the Hyperdrive id
+        run: sed -i "s/__HYPERDRIVE_ID__/${{ secrets.HYPERDRIVE_ID }}/" wrangler.jsonc
+      - name: Build and deploy
+        run: pnpm exec opennextjs-cloudflare build && pnpm exec opennextjs-cloudflare deploy -- --keep-vars
+      - name: Smoke test
+        run: curl --fail --retry 5 --retry-delay 5 "${{ vars.PRODUCTION_APP_URL }}/api/health"
