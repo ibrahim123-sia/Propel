@@ -30,6 +30,9 @@ export function Logo({
           className="h-9 w-auto"
           data-no-placeholder
           priority
+          // Straight from /media: on Workers the optimizer fetches local sources from the
+          // static assets, where media does not live, and answered 404. A logo is small.
+          unoptimized
         />
       ) : (
         <span
