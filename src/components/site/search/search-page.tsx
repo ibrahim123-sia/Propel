@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { SaveSearchButton } from "@/components/site/account/save-search-button";
-import { Suspense } from "react";
 import { Breadcrumb, type Crumb } from "@/components/site/breadcrumb";
 import { FaqList } from "@/components/site/content/faq-list";
 import { ListingCard, type CardContext } from "@/components/site/listings/listing-card";
@@ -35,10 +34,12 @@ export type SearchPreset = Partial<Pick<SearchFilters, "purpose" | "completion" 
 type Params = Record<string, string | string[] | undefined>;
 
 /**
- * Search results page (06 §4) for /buy, /rent, /off-plan and the SEO landing routes. The
- * shell is static; everything read from the URL streams in inside Suspense.
+ * Search results page (06 §4) for /buy, /rent, /off-plan and the SEO landing routes. It reads
+ * the URL first, like /projects: the page is the dynamic hole. With a Suspense boundary inside
+ * the page instead, a cached page on Workers failed to resume ("Expected the resume to render
+ * <...> in this slot") and never finished streaming.
  */
-export function SearchPage({
+export async function SearchPage({
   preset,
   searchParams,
   landing,
@@ -49,27 +50,7 @@ export function SearchPage({
 }) {
   return (
     <div className="container-wide pt-5 pb-16">
-      <Suspense fallback={<SearchSkeleton />}>
-        <SearchContent preset={preset} searchParams={searchParams} landing={landing ?? null} />
-      </Suspense>
-    </div>
-  );
-}
-
-function SearchSkeleton() {
-  return (
-    <div aria-hidden className="flex flex-col gap-4">
-      <div className="h-4 w-48 rounded bg-surface-muted" />
-      <div className="h-10 w-2/3 rounded bg-surface-muted" />
-      <div className="h-12 w-full rounded-xl bg-surface-muted" />
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
-        <div className="flex flex-col gap-4">
-          {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="h-56 rounded-[20px] bg-surface-muted" />
-          ))}
-        </div>
-        <div className="hidden h-[70vh] rounded-[20px] bg-surface-muted lg:block" />
-      </div>
+      <SearchContent preset={preset} searchParams={searchParams} landing={landing ?? null} />
     </div>
   );
 }
