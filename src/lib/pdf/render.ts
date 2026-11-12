@@ -48,8 +48,10 @@ async function launch(): Promise<{
     const browser = await puppeteer.launch(binding as Parameters<typeof puppeteer.launch>[0]);
     return { browser: browser as unknown as HeadlessBrowser, waitUntil: "networkidle0" };
   }
-  // Outside Workers: Playwright's Chromium, loaded at run time so no bundle includes it.
-  const specifier = "@playwright/test";
+  // Outside Workers: Playwright's Chromium, loaded at run time so no bundle includes it. The
+  // name comes through the environment: a plain string gets inlined by the minifier, and the
+  // Workers bundler then tries to pull Playwright into the Worker.
+  const specifier = process.env.PDF_CHROMIUM_MODULE || "@playwright/test";
   const { chromium } = (await import(
     /* turbopackIgnore: true */ /* webpackIgnore: true */ specifier
   )) as {
