@@ -12,15 +12,15 @@ test("integrations: keys are saved masked, tokens shown once, toggles saved", as
   await page.goto("/admin/settings/integrations");
   await expect(page.getByRole("heading", { name: "Integrations", level: 1 })).toBeVisible();
 
-  // An API key: saved on its own, then only shown masked.
-  const resend = page.getByRole("group", { name: "API key" }).first();
-  await resend.getByLabel("API key").fill("re_e2e_secret_value_9876");
-  await resend.getByRole("button", { name: "Save key" }).click();
-  await expect(page.getByText("API key saved")).toBeVisible();
-  await expect(resend.getByLabel("Saved key, hidden")).toHaveText("••••••••9876");
+  // A key: saved on its own, then only shown masked.
+  const maps = page.getByRole("group", { name: "Server key" });
+  await maps.getByLabel("Server key").fill("re_e2e_secret_value_9876");
+  await maps.getByRole("button", { name: "Save key" }).click();
+  await expect(page.getByText("Server key saved")).toBeVisible();
+  await expect(maps.getByLabel("Saved key, hidden")).toHaveText("••••••••9876");
   await expect(page.getByText("re_e2e_secret_value_9876")).toHaveCount(0);
   const stored = await db().query(
-    "select encrypted_value from secrets where key = 'resend_api_key'",
+    "select encrypted_value from secrets where key = 'google_maps_server_key'",
   );
   expect(stored.rows[0]!.encrypted_value).not.toContain("secret_value");
 

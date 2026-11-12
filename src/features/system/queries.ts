@@ -8,6 +8,7 @@ import { loadSettings } from "@/features/settings/queries";
 import { listSecretStatus, type SecretStatus } from "@/features/settings/secrets";
 import type { SecretKey } from "@/features/settings/schema";
 import { cronTasks } from "@/jobs/cron";
+import { smtpFromEnv } from "@/lib/email/config";
 import { env } from "@/lib/env";
 import type { TableParams } from "@/lib/table-params";
 import { readEnv } from "@/lib/legacy-env";
@@ -161,6 +162,14 @@ export type IntegrationState = {
   detail: string;
 };
 
+/** Email is set in the environment (SMTP_*), not with a stored key. */
+function emailState(): IntegrationState {
+  const smtp = smtpFromEnv();
+  return smtp
+    ? { name: "Email (SMTP)", state: "ok", detail: `${smtp.host} as ${smtp.user}` }
+    : { name: "Email (SMTP)", state: "off", detail: "No mail server set: emails stay in the log" };
+}
+
 /** One line per integration: off, missing a key, untested, working or failing (14 §6). */
 export async function integrationStatus(db?: DbOrTx): Promise<IntegrationState[]> {
   const conn = db ?? (await getDb());
@@ -179,7 +188,7 @@ export async function integrationStatus(db?: DbOrTx): Promise<IntegrationState[]
   return [
     line("Google Maps Platform", integrations.googleMaps.enabled, key("google_maps_server_key")),
     line("WhatsApp Cloud API", integrations.whatsapp.enabled, key("whatsapp_access_token")),
-    line("Email (Resend)", integrations.resend.enabled, key("resend_api_key")),
+    emailState(),
     line("Google Calendar", integrations.googleCalendar.enabled, key("google_oauth_client_secret")),
     line(
       "AI provider",

@@ -30,11 +30,14 @@ export function IntegrationsSettingsForm({
   readOnly,
   keys: initialKeys,
   appUrl,
+  mailServer,
 }: {
   initial: Integrations;
   readOnly: boolean;
   keys: KeyStatus[];
   appUrl: string;
+  /** The SMTP server from the environment, without the password. */
+  mailServer: { host: string; port: number; user: string } | null;
 }) {
   const router = useRouter();
   const [keys, setKeys] = useState(initialKeys);
@@ -181,59 +184,46 @@ export function IntegrationsSettingsForm({
           </FormSection>
 
           <FormSection
-            title="Email (Resend)"
+            title="Email (SMTP)"
             description="Sends every email: sign-up, alerts, replies to leads."
-            actions={testButton("resend")}
+            actions={testButton("email")}
           >
-            <SwitchField
-              label="Send email through Resend"
-              description={
-                value.resend.enabled
-                  ? undefined
-                  : "Off: emails are kept in the outbox and not sent."
-              }
-              checked={value.resend.enabled}
-              onChange={(enabled) => set({ resend: { ...value.resend, enabled } })}
-            />
-            {keyField("resend_api_key")}
+            <p className="text-[13px] text-text-muted">
+              {mailServer
+                ? `Sending as ${mailServer.user} through ${mailServer.host}:${mailServer.port}.`
+                : "No mail server set: emails are kept in the outbox and not sent. Add SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASSWORD to the server's environment (for Gmail, an app password)."}
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <TextInputField
-                label="From address"
-                type="email"
-                value={value.resend.fromAddress}
-                onChange={(fromAddress) =>
-                  set({ resend: { ...value.resend, fromAddress: fromAddress.trim() } })
-                }
-                error={errorFor("resend.fromAddress")}
-              />
               <TextInputField
                 label="From name"
                 description="Leave empty to use the agency name."
-                value={value.resend.fromName}
-                onChange={(fromName) => set({ resend: { ...value.resend, fromName } })}
-                error={errorFor("resend.fromName")}
+                value={value.email.fromName}
+                onChange={(fromName) => set({ email: { ...value.email, fromName } })}
+                error={errorFor("email.fromName")}
               />
               <TextInputField
                 label="Reply-to address"
                 type="email"
-                value={value.resend.replyTo}
-                onChange={(replyTo) =>
-                  set({ resend: { ...value.resend, replyTo: replyTo.trim() } })
-                }
-                error={errorFor("resend.replyTo")}
-              />
-              <TextInputField
-                label="Inbound domain"
-                description="For replies that come back into the CRM."
-                value={value.resend.inboundDomain}
-                onChange={(inboundDomain) =>
-                  set({ resend: { ...value.resend, inboundDomain: inboundDomain.trim() } })
-                }
-                error={errorFor("resend.inboundDomain")}
+                value={value.email.replyTo}
+                onChange={(replyTo) => set({ email: { ...value.email, replyTo: replyTo.trim() } })}
+                error={errorFor("email.replyTo")}
               />
             </div>
+          </FormSection>
+
+          <FormSection
+            title="Replies by email (optional)"
+            description="Replies to lead emails come back into the CRM through Resend's inbound webhook."
+          >
+            <TextInputField
+              label="Inbound domain"
+              description="For replies that come back into the CRM."
+              value={value.resend.inboundDomain}
+              onChange={(inboundDomain) => set({ resend: { inboundDomain: inboundDomain.trim() } })}
+              error={errorFor("resend.inboundDomain")}
+            />
             <Webhook
-              label="Webhook address (delivery events)"
+              label="Webhook address (inbound email)"
               url={`${appUrl}${webhookPaths.resend}`}
             />
             {keyField("resend_webhook_secret")}

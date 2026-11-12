@@ -10,6 +10,7 @@ import { capturePortalLead } from "@/features/portals/capture";
 import { EmailParsingConnector } from "@/features/portals/connector";
 import { htmlToText, stripQuotedReply } from "@/features/portals/email-parser";
 import { loadSettings } from "@/features/settings/queries";
+import { smtpFromEnv } from "@/lib/email/config";
 
 export type InboundEmail = {
   from: string;
@@ -56,7 +57,8 @@ export async function handleInboundEmail(db: Db, email: InboundEmail): Promise<I
   const subject = email.subject.trim().slice(0, 300) || "(no subject)";
 
   // Our own outgoing mail coming back (loops, bounces to the inbound address): ignore.
-  if (resend.fromAddress && sender.email === resend.fromAddress.toLowerCase())
+  const ownAddress = smtpFromEnv()?.user.toLowerCase();
+  if (ownAddress && sender.email === ownAddress)
     return { kind: "ignored", reason: "our own address" };
 
   for (const address of recipients) {

@@ -112,23 +112,20 @@ describe("system page", () => {
       "integrations",
       {
         googleMaps: { ...integrations.googleMaps, enabled: true },
-        resend: { ...integrations.resend, enabled: true },
         whatsapp: { ...integrations.whatsapp, enabled: true },
         ai: { ...integrations.ai, enabled: true },
       },
       actor,
     );
     await saveIntegrationKey({ key: "google_maps_server_key", value: "maps-key" });
-    await saveIntegrationKey({ key: "resend_api_key", value: "re_key" });
-    await recordSecretTest("resend_api_key", "Resend answered 401: invalid");
     await saveIntegrationKey({ key: "whatsapp_access_token", value: "wa-token" });
-    await recordSecretTest("whatsapp_access_token", null);
+    await recordSecretTest("whatsapp_access_token", "Meta answered 401: invalid");
 
     const byName = Object.fromEntries((await integrationStatus()).map((i) => [i.name, i.state]));
     expect(byName).toEqual({
       "Google Maps Platform": "untested",
-      "WhatsApp Cloud API": "ok",
-      "Email (Resend)": "error",
+      "WhatsApp Cloud API": "error",
+      "Email (SMTP)": "off", // no SMTP_* in the test environment
       "Google Calendar": "off",
       "AI provider": "ok", // the built-in test provider needs no key
     });

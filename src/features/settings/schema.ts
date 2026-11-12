@@ -380,7 +380,6 @@ export const secretKeys = [
   "whatsapp_access_token",
   "whatsapp_app_secret",
   "whatsapp_verify_token",
-  "resend_api_key",
   "resend_webhook_secret",
   "google_oauth_client_secret",
   "ai_api_key",
@@ -446,15 +445,15 @@ export const integrationsSchema = z.object({
       templates: {},
       voiceNotes: false,
     }),
-  resend: z
+  /** Outgoing email: the mail server is in the environment (SMTP_*), these are the extras. */
+  email: z
     .object({
-      enabled: z.boolean(),
-      fromAddress: z.union([z.email(), z.literal("")]),
       fromName: z.string().max(80),
       replyTo: z.union([z.email(), z.literal("")]),
-      inboundDomain: z.string().max(120),
     })
-    .default({ enabled: false, fromAddress: "", fromName: "", replyTo: "", inboundDomain: "" }),
+    .default({ fromName: "", replyTo: "" }),
+  /** Replies by email back into the CRM, through Resend's inbound webhook (optional). */
+  resend: z.object({ inboundDomain: z.string().max(120) }).default({ inboundDomain: "" }),
   googleCalendar: z
     .object({ enabled: z.boolean(), clientId: z.string().max(200) })
     .default({ enabled: false, clientId: "" }),

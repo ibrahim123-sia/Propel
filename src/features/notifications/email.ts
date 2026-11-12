@@ -3,9 +3,10 @@ import { z } from "zod";
 import { getDb, type DbOrTx } from "@/db/client";
 import { emailLog } from "@/db/schema/system";
 import { loadSettings } from "@/features/settings/queries";
-import { getSecret } from "@/features/settings/secrets";
 import { enqueue } from "@/jobs/enqueue";
 import { defineJob } from "@/jobs/types";
+import { sendSmtp, type SmtpConfig } from "@/lib/email/smtp";
+import { smtpFromEnv } from "@/lib/email/config";
 import { newId } from "@/lib/ids";
 
 export type OutgoingEmail = {
@@ -48,55 +49,23 @@ export async function queueEmail(email: OutgoingEmail, db?: DbOrTx): Promise<str
   return id;
 }
 
-type ResendConfig = { apiKey: string; from: string; replyTo: string | null };
+type SenderConfig = { smtp: SmtpConfig; from: string; fromAddress: string; replyTo: string | null };
 
-async function resendConfig(db: DbOrTx): Promise<ResendConfig | null> {
-  const integrations = await loadSettings("integrations", db);
-  if (!integrations.resend.enabled || !integrations.resend.fromAddress) return null;
-  const apiKey = await getSecret("resend_api_key", db);
-  if (!apiKey) return null;
-  const name = integrations.resend.fromName || (await loadSettings("general", db)).agencyName;
+/**
+ * The mail server comes from the environment (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD;
+ * Worker secrets in production); the sender name and reply-to from Settings -> Integrations.
+ */
+async function senderConfig(db: DbOrTx): Promise<SenderConfig | null> {
+  const smtp = smtpFromEnv();
+  if (!smtp) return null;
+  const { email } = await loadSettings("integrations", db);
+  const name = email.fromName || (await loadSettings("general", db)).agencyName;
   return {
-    apiKey,
-    from: `${name.replace(/[<>"]/g, "")} <${integrations.resend.fromAddress}>`,
-    replyTo: integrations.resend.replyTo || null,
+    smtp,
+    from: `${name.replace(/[<>"]/g, "")} <${smtp.user}>`,
+    fromAddress: smtp.user,
+    replyTo: email.replyTo || null,
   };
-}
-
-/** Resend HTTP API. The email log id is the idempotency key, so retries never double-send. */
-async function sendWithResend(
-  config: ResendConfig,
-  idempotencyKey: string,
-  email: {
-    to: string;
-    subject: string;
-    html: string;
-    text: string;
-    replyTo: string | null;
-    headers?: Record<string, string> | null;
-  },
-): Promise<string> {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-      "Idempotency-Key": idempotencyKey,
-    },
-    body: JSON.stringify({
-      from: config.from,
-      to: [email.to],
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
-      reply_to: email.replyTo ?? config.replyTo ?? undefined,
-      ...(email.headers ? { headers: email.headers } : {}),
-    }),
-  });
-  const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
-  if (!res.ok || !body.id)
-    throw new Error(`Resend ${res.status}: ${body.message ?? "unknown error"}`);
-  return body.id;
 }
 
 export const emailSendJob = defineJob({
@@ -112,7 +81,7 @@ export const emailSendJob = defineJob({
     if (!row) return { skipped: "missing" };
     if (row.status === "sent" || row.status === "mocked") return { skipped: row.status };
 
-    const config = await resendConfig(db);
+    const config = await senderConfig(db);
     if (!config) {
       // No provider configured (development, demo, tests): keep the email in the log only.
       await db
@@ -123,23 +92,26 @@ export const emailSendJob = defineJob({
       return { provider: "mock" };
     }
     try {
-      const providerId = await sendWithResend(config, emailId, {
+      const providerId = await sendSmtp(config.smtp, {
+        id: emailId,
+        from: config.from,
+        fromAddress: config.fromAddress,
         to: row.to,
         subject: row.subject,
         html: row.html ?? "",
         text: row.text ?? "",
-        replyTo,
+        replyTo: replyTo ?? config.replyTo,
         headers,
       });
       await db
         .update(emailLog)
-        .set({ status: "sent", provider: "resend", providerId, sentAt: new Date(), error: null })
+        .set({ status: "sent", provider: "smtp", providerId, sentAt: new Date(), error: null })
         .where(eq(emailLog.id, emailId));
-      return { provider: "resend", providerId };
+      return { provider: "smtp", providerId };
     } catch (err) {
       await db
         .update(emailLog)
-        .set({ status: "failed", provider: "resend", error: (err as Error).message.slice(0, 1000) })
+        .set({ status: "failed", provider: "smtp", error: (err as Error).message.slice(0, 1000) })
         .where(eq(emailLog.id, emailId));
       throw err;
     }

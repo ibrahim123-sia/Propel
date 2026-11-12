@@ -76,18 +76,18 @@ describe("encrypted secrets", () => {
 
   it("stores ciphertext, decrypts on read and masks for display", async () => {
     const db = await getDb();
-    await setSecret(db, "resend_api_key", "re_test_1234567890abcd", { ...admin });
+    await setSecret(db, "whatsapp_access_token", "wa_test_1234567890abcd", { ...admin });
     const [row] = await db.select().from(secrets);
-    expect(row!.encryptedValue).not.toContain("re_test");
-    expect(await getSecret("resend_api_key")).toBe("re_test_1234567890abcd");
+    expect(row!.encryptedValue).not.toContain("wa_test");
+    expect(await getSecret("whatsapp_access_token")).toBe("wa_test_1234567890abcd");
 
     const status = await listSecretStatus();
-    const resend = status.find((s) => s.key === "resend_api_key")!;
-    expect(resend).toMatchObject({ isSet: true, masked: "••••••••abcd" });
+    const token = status.find((s) => s.key === "whatsapp_access_token")!;
+    expect(token).toMatchObject({ isSet: true, masked: "••••••••abcd" });
     expect(status.find((s) => s.key === "ai_api_key")!.isSet).toBe(false);
 
     const [entry] = await db.select().from(auditLog);
-    expect(JSON.stringify(entry)).not.toContain("re_test");
+    expect(JSON.stringify(entry)).not.toContain("wa_test");
   });
 
   it("keeps the audit log append-only", async () => {

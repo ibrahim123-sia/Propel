@@ -21,7 +21,6 @@ const appUrl = () => (process.env.APP_URL ?? "http://localhost:3000").replace(/\
 const serviceOf: Partial<Record<SecretKey, string>> = {
   google_maps_server_key: "Google Maps Platform",
   whatsapp_access_token: "WhatsApp Cloud API",
-  resend_api_key: "Email (Resend)",
   google_oauth_client_secret: "Google Calendar",
   ai_api_key: "The AI provider",
   ai_fallback_api_key: "The backup AI provider",

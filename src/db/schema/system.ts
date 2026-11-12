@@ -142,7 +142,8 @@ export const emailLog = pgTable(
     html: text(),
     text: text(),
     status: text({ enum: emailStatuses }).notNull().default("queued"),
-    provider: text({ enum: ["resend", "mock"] }).notNull(),
+    // "resend": emails sent before SMTP replaced it.
+    provider: text({ enum: ["smtp", "resend", "mock"] }).notNull(),
     providerId: text(),
     error: text(),
     relatedType: text(),

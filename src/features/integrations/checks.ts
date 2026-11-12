@@ -10,6 +10,8 @@ import { gatewayBase } from "@/features/ai/providers/http";
 import type { AiProviderName } from "@/features/ai/types";
 import { testGoogleCalendar } from "./google-calendar/calendar";
 import { testMapsConnection } from "./google-maps";
+import { smtpFromEnv } from "@/lib/email/config";
+import { verifySmtp } from "@/lib/email/smtp";
 
 /**
  * "Test connection" for each integration (04 §8): a cheap, read-only call with the stored
@@ -20,7 +22,7 @@ export type CheckResult = { ok: boolean; message: string };
 export const testableIntegrations = [
   "googleMaps",
   "googleCalendar",
-  "resend",
+  "email",
   "whatsapp",
   "ai",
 ] as const;
@@ -65,24 +67,20 @@ async function check(
 
 const timeout = () => AbortSignal.timeout(10_000);
 
-export async function testResend(db?: DbOrTx): Promise<CheckResult> {
-  return check("resend_api_key", db, async (key) => {
-    const res = await fetch("https://api.resend.com/domains", {
-      headers: { Authorization: `Bearer ${key}` },
-      signal: timeout(),
-    });
-    if (res.ok) {
-      const body = (await res.json()) as { data?: unknown[] };
-      const n = body.data?.length ?? 0;
-      return { ok: true, message: `Connected (${n} sending domain${n === 1 ? "" : "s"})` };
-    }
-    const text = await errorText(res);
-    // A key limited to sending cannot list domains, but it is valid.
-    if (res.status === 401 && /restricted/i.test(text)) {
-      return { ok: true, message: "Connected (sending-only key)" };
-    }
-    return { ok: false, message: `Resend answered ${res.status}: ${text}` };
-  });
+/** Logs in to the mail server from the environment (SMTP_*) without sending anything. */
+export async function testEmail(): Promise<CheckResult> {
+  const smtp = smtpFromEnv();
+  if (!smtp)
+    return {
+      ok: false,
+      message: "No mail server set: add SMTP_USER and SMTP_PASSWORD to the environment.",
+    };
+  try {
+    await verifySmtp(smtp);
+    return { ok: true, message: `Connected to ${smtp.host} as ${smtp.user}` };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message.slice(0, 300) };
+  }
 }
 
 export async function testWhatsapp(db?: DbOrTx): Promise<CheckResult> {
@@ -208,8 +206,8 @@ export function runCheck(name: TestableIntegration, db?: DbOrTx): Promise<CheckR
       return testMapsConnection(db);
     case "googleCalendar":
       return testGoogleCalendar(db);
-    case "resend":
-      return testResend(db);
+    case "email":
+      return testEmail();
     case "whatsapp":
       return testWhatsapp(db);
     case "ai":

@@ -73,10 +73,6 @@ describe("inbound email and portals (13 §1)", () => {
       "integrations",
       {
         resend: {
-          enabled: false,
-          fromAddress: "hello@havendune.example",
-          fromName: "",
-          replyTo: "",
           inboundDomain: "in.havendune.example",
         },
       },

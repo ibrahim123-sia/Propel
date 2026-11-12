@@ -84,7 +84,7 @@ All taken from the demo agency (Haven & Dune) on the production build. Refresh t
 | Auth      | Better Auth: email and password, email verification, TOTP two-step verification for admins             |
 | Hosting   | Cloudflare Workers via OpenNext, with R2, Queues, Hyperdrive, Cron Triggers, Images, Browser Rendering |
 | Maps      | MapLibre GL with terra-draw; Google Maps Platform (Geocoding, Places, Routes) from the server only     |
-| Email     | Resend with React Email templates                                                                      |
+| Email     | SMTP (Gmail with an app password works) with React Email templates                                     |
 | Quality   | Vitest (unit and integration), Playwright (end to end), ESLint, Prettier, GitHub Actions               |
 
 ## Getting started
@@ -122,8 +122,9 @@ pnpm admin:create --email you@agency.com --name "Your Name"   # prints a generat
 ```
 
 Admins sign in at `/admin/sign-in` and set up two-step verification at first sign-in. Customers
-sign up at `/sign-up`. In development no email leaves the machine: messages are stored in the
-`email_log` table (status `mocked`) until a Resend key is added in Settings → Integrations.
+sign up at `/sign-up`. Until a mail server is set, no email leaves the machine: messages are
+stored in the `email_log` table (status `mocked`). Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` and
+`SMTP_PASSWORD` (`.env.local`, or Worker secrets in production) to send them.
 
 ## Demo data
 
@@ -150,7 +151,7 @@ Use `pnpm db:seed --reset` to replace the demo data in an existing database.
   encryption secrets, internal job secret, Turnstile). They are documented in
   [`.env.example`](.env.example). [`.dev.vars.example`](.dev.vars.example) is only for
   `pnpm preview` (the app inside the local Workers runtime).
-- **Integration keys** (Google Maps, WhatsApp, Resend, Meta and TikTok lead forms, Google
+- **Integration keys** (Google Maps, WhatsApp, Meta and TikTok lead forms, Google
   Calendar, the AI provider) are not environment variables. Admins enter them in
   Settings → Integrations, and they are stored encrypted (AES-256-GCM) in the database.
 - **AI providers**: Groq, Google Gemini, xAI Grok or Anthropic Claude, chosen in Settings →

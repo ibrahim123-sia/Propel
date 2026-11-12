@@ -257,10 +257,6 @@ describe("inbox (09 §6)", () => {
       "integrations",
       {
         resend: {
-          enabled: false,
-          fromAddress: "",
-          fromName: "",
-          replyTo: "",
           inboundDomain: "in.havendune.example",
         },
       },

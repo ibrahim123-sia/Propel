@@ -18,7 +18,6 @@ export const keyInfo: Record<SecretKey, { label: string; help?: string }> = {
     help: "Lets Propel check that webhook calls really come from Meta.",
   },
   whatsapp_verify_token: { label: "Webhook verify token" },
-  resend_api_key: { label: "API key" },
   resend_webhook_secret: {
     label: "Webhook signing secret",
     help: "From Resend -> Webhooks (it starts with whsec_).",

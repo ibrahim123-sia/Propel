@@ -23,6 +23,12 @@ const serverEnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 
+  /** Outgoing mail over SMTP with implicit TLS (lib/email/smtp). Unset: emails stay in the log. */
+  SMTP_HOST: z.string().trim().default("smtp.gmail.com"),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(465),
+  SMTP_USER: z.string().trim().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+
   SECRETS_ENCRYPTION_KEY: z.string().optional(),
   INTERNAL_JOB_SECRET: z.string().optional(),
 

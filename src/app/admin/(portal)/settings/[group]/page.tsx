@@ -23,6 +23,13 @@ import { loadSettings } from "@/features/settings/queries";
 import { listSecretStatus } from "@/features/settings/secrets";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { env } from "@/lib/env";
+import { smtpFromEnv } from "@/lib/email/config";
+
+/** Only the host and user reach the page; the password stays on the server. */
+function mailServerOf() {
+  const smtp = smtpFromEnv();
+  return smtp ? { host: smtp.host, port: smtp.port, user: smtp.user } : null;
+}
 
 export const instant = false;
 
@@ -159,6 +166,7 @@ export default async function SettingsGroupPage(props: PageProps<"/admin/setting
             readOnly={readOnly}
             keys={keys.map((k) => ({ ...k, lastTestedAt: k.lastTestedAt?.toISOString() ?? null }))}
             appUrl={env().APP_URL.replace(/\/$/, "")}
+            mailServer={mailServerOf()}
           />
         );
       }

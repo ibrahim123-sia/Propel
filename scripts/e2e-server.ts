@@ -32,6 +32,9 @@ const env: NodeJS.ProcessEnv = {
   JOBS_DRIVER: "inline",
   STORAGE_DRIVER: "fs",
   STORAGE_FS_DIR: localDataPath("e2e-media"),
+  // Never send real email from a test run, even when .env.local has a mail server.
+  SMTP_USER: "",
+  SMTP_PASSWORD: "",
   // Many sign-ins from one IP in a short run; the limits themselves are covered by integration tests.
   RATE_LIMITS: "off",
   TURNSTILE_SECRET_KEY: "off",

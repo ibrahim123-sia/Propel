@@ -186,29 +186,37 @@ describe("data retention (04 §11, 14 §3)", () => {
 describe("integration error alerts (13 §3)", () => {
   it("emails admins when a working key starts failing, once a day, and shows it as failing", async () => {
     const db = await getDb();
-    const { resend } = await loadSettings("integrations", db);
-    await patchSettings(db, "integrations", { resend: { ...resend, enabled: true } }, actor);
-    await setSecret(db, "resend_api_key", "re_test", actor);
-    await recordIntegrationResult("resend_api_key", null, db);
+    const { whatsapp } = await loadSettings("integrations", db);
+    await patchSettings(db, "integrations", { whatsapp: { ...whatsapp, enabled: true } }, actor);
+    await setSecret(db, "whatsapp_access_token", "wa_test", actor);
+    await recordIntegrationResult("whatsapp_access_token", null, db);
     expect(await sentWith("system.integration_error")).toEqual([]);
 
-    await recordIntegrationResult("resend_api_key", "Resend answered 401: API key is invalid", db);
+    await recordIntegrationResult(
+      "whatsapp_access_token",
+      "Meta answered 401: the access token is invalid",
+      db,
+    );
     // Still failing on the next try: no second email.
-    await recordIntegrationResult("resend_api_key", "Resend answered 401: API key is invalid", db);
+    await recordIntegrationResult(
+      "whatsapp_access_token",
+      "Meta answered 401: the access token is invalid",
+      db,
+    );
     expect(await sentWith("system.integration_error")).toEqual([
-      { to: "owner@agency.example", subject: "Email (Resend) is not working" },
+      { to: "owner@agency.example", subject: "WhatsApp Cloud API is not working" },
     ]);
     const states = await integrationStatus(db);
-    expect(states.find((s) => s.name === "Email (Resend)")).toMatchObject({
+    expect(states.find((s) => s.name === "WhatsApp Cloud API")).toMatchObject({
       state: "error",
-      detail: "Resend answered 401: API key is invalid",
+      detail: "Meta answered 401: the access token is invalid",
     });
 
     // Fixed, then broken again the same day: the day's email was already sent.
-    await recordIntegrationResult("resend_api_key", null, db);
-    await recordIntegrationResult("resend_api_key", "Timeout", db);
+    await recordIntegrationResult("whatsapp_access_token", null, db);
+    await recordIntegrationResult("whatsapp_access_token", "Timeout", db);
     expect(await sentWith("system.integration_error")).toHaveLength(1);
-    const [row] = await db.select().from(secrets).where(eq(secrets.key, "resend_api_key"));
+    const [row] = await db.select().from(secrets).where(eq(secrets.key, "whatsapp_access_token"));
     expect(row!.lastError).toBe("Timeout");
   });
 });

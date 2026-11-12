@@ -6,7 +6,8 @@
  *   wrangler hyperdrive create propel --connection-string="postgres://...neon..."
  * CI replaces __HYPERDRIVE_ID__ / __HYPERDRIVE_ID_STAGING__ from repository secrets.
  * Secrets (never in this file): BETTER_AUTH_SECRET, SECRETS_ENCRYPTION_KEY,
- * INTERNAL_JOB_SECRET, TURNSTILE_SECRET_KEY, GOOGLE_CLIENT_SECRET -> `wrangler secret put`.
+ * INTERNAL_JOB_SECRET, TURNSTILE_SECRET_KEY, GOOGLE_CLIENT_SECRET, SMTP_USER, SMTP_PASSWORD
+ * -> `wrangler secret put`.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
