@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
     // The e2e dev server always starts cold: a restored dev cache next to files edited since
     // (e.g. by the formatter) sent the browser into an endless reload loop.
     turbopackFileSystemCacheForDev: process.env.NEXT_DIST_DIR !== ".next-e2e",
+    // A cached page's postponed state is zlib-compressed by default. Workers' zlib rejects the
+    // 500 MB output limit Next passes to inflateSync (RangeError), so every page served from
+    // the cache failed to resume and hung. Uncompressed it needs no zlib at all.
+    disableResumeDataCacheCompression: true,
   },
   turbopack: {
     rules: {
