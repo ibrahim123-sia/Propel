@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { chatTopicReports } from "@/db/schema/ai";
 import { conversations, messages } from "@/db/schema/crm";
@@ -31,6 +31,9 @@ async function ask(questions: string[], at = new Date(now.getTime() - 86_400_000
 
 describe("weekly chat topic clustering (10 §5)", () => {
   beforeEach(async () => {
+    // The dashboard only shows a report from the last 14 days, counted from today: keep
+    // "today" on the test's date so the test does not expire.
+    vi.useFakeTimers({ now, toFake: ["Date"] });
     resetMock();
     await truncate("conversations", "messages", "chat_topic_reports", "ai_usage", "properties");
     await patchSettings(
@@ -39,6 +42,10 @@ describe("weekly chat topic clustering (10 §5)", () => {
       { ai: { ...defaultsFor("integrations").ai, enabled: true, provider: "mock" } },
       actor,
     );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("groups the week's questions, stores them and suggests a blog post", async () => {
