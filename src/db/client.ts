@@ -59,6 +59,10 @@ const workersDb = cache(async (): Promise<Db> => {
   const hyperdrive = (env as { HYPERDRIVE?: { connectionString: string } }).HYPERDRIVE;
   if (!hyperdrive) throw new Error("HYPERDRIVE binding is missing");
   const pool = new Pool({ connectionString: hyperdrive.connectionString, max: 3, maxUses: 1 });
+  // When the request ends, Workers closes its sockets under any idle client; without these
+  // listeners that surfaces as an unhandled "This socket has been closed".
+  pool.on("error", () => undefined);
+  pool.on("connect", (client) => client.on("error", () => undefined));
   return createDb(pool);
 });
 
