@@ -10,6 +10,8 @@
 ![Cloudflare Workers](https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-f38020?logo=cloudflare&logoColor=white)
 ![License: proprietary](https://img.shields.io/badge/license-proprietary-lightgrey)
 
+**[Live demo → propel.syedibrahimali.workers.dev](https://propel.syedibrahimali.workers.dev)**
+
 </div>
 
 One agency installs Propel and runs its whole business from it: listings and projects, the public
