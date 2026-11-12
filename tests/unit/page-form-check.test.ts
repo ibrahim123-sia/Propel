@@ -10,11 +10,6 @@ const valid: PageFormInput = {
   phone: "",
   message: "Do you manage rentals?",
   preferredTime: "",
-  purpose: null,
-  area: "",
-  propertyType: "",
-  beds: "",
-  expectedPrice: "",
   consent: true,
   website: "",
   captchaToken: null,
@@ -43,9 +38,6 @@ const cases: Array<[string, Partial<PageFormInput>]> = [
   ["a callback with a phone", { formType: "callback", phone: "050 123 4567", email: "" }],
   ["a newsletter without an email", { formType: "newsletter", name: "", email: "" }],
   ["a newsletter signup", { formType: "newsletter", name: "" }],
-  ["a valuation without an area", { formType: "valuation", message: "" }],
-  ["a valuation", { formType: "valuation", area: "Dubai Marina", beds: "2" }],
-  ["a long price", { formType: "valuation", area: "JBR", expectedPrice: "9".repeat(41) }],
 ];
 
 describe("page builder form checks in the browser match the server", () => {

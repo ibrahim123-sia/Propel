@@ -14,7 +14,6 @@ import { PlaceMap } from "@/components/site/maps/place-map";
 import { MediaImage } from "@/components/site/media-image";
 import { LightboxProvider, LightboxTrigger } from "@/components/site/property/lightbox-provider";
 import { withHeadingIds } from "@/features/cms/headings";
-import { heroSearchOptions } from "@/features/cms/queries";
 import {
   developerLogos,
   faqItems,
@@ -413,15 +412,10 @@ export async function BlogPosts({ s }: { s: Of<"blog_posts"> }) {
   );
 }
 
-async function formPropertyTypes(): Promise<string[]> {
-  return (await heroSearchOptions()).types.map((t) => t.name);
-}
-
 export async function ContactBlock({ s, ctx }: { s: Of<"contact_block">; ctx: SectionContext }) {
-  const [contact, integrations, types] = await Promise.all([
+  const [contact, integrations] = await Promise.all([
     getSettings("contact"),
     getSettings("integrations"),
-    formPropertyTypes(),
   ]);
   const whatsapp = contact.whatsapp.replace(/\D/g, "");
   const point = s.props.showMap ? contact.officePoint : null;
@@ -525,7 +519,7 @@ export async function ContactBlock({ s, ctx }: { s: Of<"contact_block">; ctx: Se
             {s.props.formHeading && (
               <h3 className="mb-4 text-h3 text-ink">{s.props.formHeading}</h3>
             )}
-            <PageForm formType="contact" pageId={ctx.pageId ?? null} propertyTypes={types} />
+            <PageForm formType="contact" pageId={ctx.pageId ?? null} />
           </div>
         )}
       </div>
@@ -534,7 +528,6 @@ export async function ContactBlock({ s, ctx }: { s: Of<"contact_block">; ctx: Se
 }
 
 export async function FormSection({ s, ctx }: { s: Of<"form">; ctx: SectionContext }) {
-  const types = await formPropertyTypes();
   return (
     <SectionShell style={s.style} label={s.props.heading}>
       <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
@@ -549,7 +542,6 @@ export async function FormSection({ s, ctx }: { s: Of<"form">; ctx: SectionConte
             pageId={ctx.pageId ?? null}
             buttonLabel={s.props.buttonLabel || undefined}
             successMessage={s.props.successMessage || undefined}
-            propertyTypes={types}
           />
         </div>
       </div>

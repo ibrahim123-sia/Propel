@@ -57,11 +57,8 @@ test("tools cards, the teaser's question chips open the chat, and a page without
     "href",
     "/tools/mortgage",
   );
-  await expect(tools.getByRole("link", { name: /Free valuation/ })).toHaveAttribute(
-    "href",
-    "/valuation",
-  );
-  await expect(tools.getByRole("link")).toHaveCount(2);
+  // A page saved with the valuation tool, removed since, just leaves it out.
+  await expect(tools.getByRole("link")).toHaveCount(1);
 
   const chips = page.getByRole("list", { name: "Example questions" });
   await chips.getByRole("button", { name: "What does a villa cost?" }).click();

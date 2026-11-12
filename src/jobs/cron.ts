@@ -27,7 +27,6 @@ import { newId } from "@/lib/ids";
 import { log } from "@/lib/log";
 import { purgeExpired } from "@/lib/rate-limit";
 import { computeLastMonthPriceStats } from "@/features/price-trends/compute";
-import { cleanupOwnerPhotos } from "@/features/valuation/photos";
 import { requeueStuckJobs, runDueJobs } from "./runner";
 
 /**
@@ -213,13 +212,6 @@ export const cronTasks: CronTask[] = [
     due: (t) => t.minute === 0,
     run: async () => queueWeeklyReport(await getDb()),
     quiet: true,
-  },
-  // Daily: owner photos never attached to a valuation or listing request (11 §5).
-  {
-    name: "owner-photos.cleanup",
-    schedule: "daily at 03:45",
-    due: at(3, 45),
-    run: async () => cleanupOwnerPhotos(await getDb()),
   },
   // Monthly (13 §2): last month's price trend figures from the agency's listings and deals (11 §7).
   {

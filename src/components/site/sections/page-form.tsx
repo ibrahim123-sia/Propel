@@ -24,8 +24,7 @@ const resolver: Resolver<PageFormInput> = async (values) => {
 };
 
 /**
- * A page builder form (08 §1 "Form", 06 §10): contact, callback, valuation, list your property
- * or newsletter. Checked here and again on the server, with a honeypot and Turnstile. The
+ * A page builder form (08 §1 "Form", 06 §10): contact, callback or newsletter. Checked here and again on the server, with a honeypot and Turnstile. The
  * success message says what happens next.
  */
 export function PageForm({
@@ -33,14 +32,11 @@ export function PageForm({
   pageId,
   buttonLabel,
   successMessage,
-  propertyTypes,
 }: {
   formType: PageFormType;
   pageId: string | null;
   buttonLabel?: string;
   successMessage?: string;
-  /** For the valuation form. */
-  propertyTypes: string[];
 }) {
   const t = cms.forms;
   const hydrated = useHydrated();
@@ -58,11 +54,6 @@ export function PageForm({
       phone: "",
       message: "",
       preferredTime: "",
-      purpose: null,
-      area: "",
-      propertyType: "",
-      beds: "",
-      expectedPrice: "",
       consent: false as unknown as true,
       website: "",
       captchaToken: null,
@@ -73,9 +64,6 @@ export function PageForm({
 
   if (sent) return <FormAlert tone="success">{successMessage || t.success[formType]}</FormAlert>;
 
-  const select =
-    "h-11 w-full rounded-input border border-input bg-surface px-3 text-[15px] text-ink";
-  const property = formType === "valuation";
   return (
     <form
       noValidate
@@ -129,31 +117,6 @@ export function PageForm({
           error={err("preferredTime")}
           {...register("preferredTime")}
         />
-      )}
-      {property && (
-        <>
-          <TextField label={t.area} size="default" error={err("area")} {...register("area")} />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[14px] font-semibold text-ink">{t.propertyType}</span>
-              <select className={select} {...register("propertyType")}>
-                <option value="">{t.any}</option>
-                {propertyTypes.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <TextField
-              label={t.beds}
-              inputMode="numeric"
-              size="default"
-              error={err("beds")}
-              {...register("beds")}
-            />
-          </div>
-        </>
       )}
       {formType !== "newsletter" && formType !== "callback" && (
         <label className="flex flex-col gap-1.5">

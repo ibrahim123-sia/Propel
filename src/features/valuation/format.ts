@@ -2,7 +2,9 @@ import { format } from "@/lib/i18n";
 import { valuation as t } from "@/lib/i18n/dictionaries/valuation";
 import { formatMoney, type CurrencyFormat } from "@/lib/money";
 import { formatArea, type AreaUnit } from "@/lib/units";
-import type { OwnerCondition, OwnerUpgrade } from "./schema";
+
+type OwnerCondition = keyof typeof t.home.conditions;
+type OwnerUpgrade = keyof typeof t.home.upgradeOptions;
 
 /** Words for an owner request in emails and the lead page. Client-safe. */
 

@@ -210,9 +210,6 @@ export async function agencyWhatsapp(db: DbOrTx): Promise<string[]> {
   return contact.leadNotifyWhatsapp ? [contact.leadNotifyWhatsapp] : [];
 }
 
-/** Lead sources whose notices come from the owner request job (features/valuation/notify.ts). */
-const ownerRequestSources = new Set(["valuation", "listing_request"]);
-
 /** Team notices on WhatsApp, only when WhatsApp is turned on; once per number and event. */
 export async function whatsappNotices(
   db: DbOrTx,
@@ -346,11 +343,8 @@ export const leadProcessJob = defineJob({
   async run({ leadId, eventId, isNew }, { db }) {
     const ctx = await loadLeadContext(db, leadId, eventId);
     if (!ctx) return { skipped: "missing" };
-    // Owner requests (valuation, list your property) are announced by `owner_request.notify`
-    // once the request is saved, with their own messages and toggles (11 §5-6, 13 §3).
-    const ownerRequest = ownerRequestSources.has(String(ctx.event?.meta.source ?? ""));
-    const notified = ownerRequest ? [] : await notifyTeam(db, ctx, eventId, isNew);
-    const replied = isNew && !ownerRequest ? await autoReply(db, ctx) : false;
+    const notified = await notifyTeam(db, ctx, eventId, isNew);
+    const replied = isNew ? await autoReply(db, ctx) : false;
     await enqueue("lead.score", { leadId }, { db, dedupeKey: `lead.score:${leadId}` });
     return { notified: notified.length, replied };
   },

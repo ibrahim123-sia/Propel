@@ -176,7 +176,6 @@ describe("sitemap and robots", () => {
       "/agents",
       "/tools/mortgage",
       "/tools/rental-returns",
-      "/valuation",
     ]);
     expect(await paths("projects")).toEqual(["/projects/pier-seven"]);
     expect(await paths("posts")).toEqual([

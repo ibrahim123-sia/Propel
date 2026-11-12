@@ -633,8 +633,6 @@ export const notificationEvents = [
   "leadNotAnswered",
   "newViewing",
   "viewingCancelled",
-  "valuationRequest",
-  "listingRequest",
   "dailySummary",
   "weeklyReport",
   "integrationError",

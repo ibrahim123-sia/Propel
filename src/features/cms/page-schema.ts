@@ -63,7 +63,6 @@ export const reservedSlugs: ReadonlySet<string> = new Set([
   "sign-up",
   "sitemap",
   "tools",
-  "valuation",
 ]);
 
 export const pageSlugSchema = z

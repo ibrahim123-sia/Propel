@@ -3,13 +3,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { pages } from "@/db/schema/cms";
 import { faqs, testimonials } from "@/db/schema/content";
-import {
-  leadEvents,
-  leads,
-  leadTasks,
-  newsletterSubscribers,
-  valuationRequests,
-} from "@/db/schema/crm";
+import { leadEvents, leads, leadTasks, newsletterSubscribers } from "@/db/schema/crm";
 import { emailLog } from "@/db/schema/system";
 import { runDueJobs } from "@/jobs/runner";
 import { faqItems, filtersFromSearchLink, testimonialCards } from "@/features/cms/section-data";
@@ -68,31 +62,11 @@ describe("page builder sections: forms and content", () => {
     captchaToken: "good-token",
   };
 
-  it("every page form is a lead with its source, the owner's request and a task", async () => {
+  it("every page form is a lead with its source, and a callback gets a task", async () => {
     const db = await getDb();
     const pageId = newId();
     await db.insert(pages).values({ id: pageId, title: "Sell with us", slug: "sell-with-us" });
     expect(await sendPageForm({ ...contact, pageId })).toEqual({ ok: true, data: { sent: true } });
-    const owner = {
-      name: "Rana Owner",
-      phone: "050 123 4567",
-      area: "Marina, Tower 3",
-      beds: "2",
-      consent: true as const,
-      captchaToken: "good-token",
-    };
-    expect(await sendPageForm({ ...owner, formType: "valuation" })).toMatchObject({ ok: true });
-    expect(
-      await sendPageForm({
-        formType: "valuation",
-        name: "Omar Seller",
-        email: "omar@example.com",
-        area: "JVC",
-        propertyType: "Villa",
-        consent: true,
-        captchaToken: "good-token",
-      }),
-    ).toMatchObject({ ok: true });
     expect(
       await sendPageForm({
         formType: "callback",
@@ -108,8 +82,6 @@ describe("page builder sections: forms and content", () => {
     expect(all.map((l) => [l.source, l.type, l.sourceDetail]).sort()).toEqual([
       ["callback", "buyer", "page form"],
       ["form", "buyer", "contact"],
-      ["valuation", "seller", "page form"],
-      ["valuation", "seller", "page form"],
     ]);
     const [created] = await db
       .select({ body: leadEvents.body, meta: leadEvents.meta })
@@ -121,34 +93,16 @@ describe("page builder sections: forms and content", () => {
       body: "Do you manage rentals?",
       meta: { details: { page: "Sell with us" } },
     });
-    const valuations = await db.select().from(valuationRequests);
-    expect(valuations.map((v) => [v.building, v.beds]).sort()).toEqual([
-      ["JVC", null],
-      ["Marina, Tower 3", 2],
-    ]);
     expect(
       (await db.select({ title: leadTasks.title }).from(leadTasks)).map((x) => x.title).sort(),
-    ).toEqual([
-      "Call back (best time: after 6pm)",
-      "Value the home in JVC",
-      "Value the home in Marina, Tower 3",
-    ]);
+    ).toEqual(["Call back (best time: after 6pm)"]);
 
     // The agency hears through the lead pipeline, with what was asked and where from.
     for (let i = 0; i < 5; i++) if ((await runDueJobs()).ran === 0) break;
     const mails = await db.select().from(emailLog);
     expect(mails.filter((m) => m.template.startsWith("page-form"))).toEqual([]);
     const toAgency = mails.filter((m) => m.to === "hello@agency.example");
-    // Owner requests get their own notice (features/valuation/notify.ts) instead of "lead.new".
-    expect(toAgency.map((m) => m.template).sort()).toEqual([
-      "lead.new",
-      "lead.new",
-      "valuation.new",
-      "valuation.new",
-    ]);
-    expect(mails.filter((m) => m.to === "omar@example.com").map((m) => m.template)).toEqual([
-      "valuation.received",
-    ]);
+    expect(toAgency.map((m) => m.template).sort()).toEqual(["lead.new", "lead.new"]);
     const message = toAgency.find((m) => (m.text ?? "").includes("Do you manage rentals?"))!;
     expect(message.text).toContain("Sent from: Sell with us");
   });

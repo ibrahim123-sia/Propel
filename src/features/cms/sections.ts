@@ -37,16 +37,17 @@ const lngLat = z
   .strict();
 
 /** Forms the "Form" section can show (08 §1). Phase 6 turns every submit into a lead. */
-export const pageFormTypes = ["contact", "callback", "valuation", "newsletter"] as const;
+export const pageFormTypes = ["contact", "callback", "newsletter"] as const;
 export type PageFormType = (typeof pageFormTypes)[number];
 
 /**
  * The tools a "Tools" section can show (06 §3 item 7, 11). Owners do not list homes
- * themselves: the agency lists every home, so pages saved with "list_property" drop it.
+ * themselves or ask for a valuation online: the agency lists every home, so pages saved with
+ * "list_property" or "valuation" drop them.
  */
-export const siteTools = ["mortgage", "rental_returns", "compare", "valuation"] as const;
+export const siteTools = ["mortgage", "rental_returns", "compare"] as const;
 export type SiteTool = (typeof siteTools)[number];
-const defaultTools: SiteTool[] = ["mortgage", "rental_returns", "compare", "valuation"];
+const defaultTools: SiteTool[] = ["mortgage", "rental_returns", "compare"];
 
 export const sectionStyleSchema = z
   .object({
@@ -230,7 +231,8 @@ const propsByType = {
       heading: text(120),
       tools: z
         .preprocess(
-          (v) => (Array.isArray(v) ? v.filter((x) => x !== "list_property") : v),
+          (v) =>
+            Array.isArray(v) ? v.filter((x) => x !== "list_property" && x !== "valuation") : v,
           z.array(z.enum(siteTools)).min(1).max(siteTools.length),
         )
         .default([...defaultTools]),
@@ -261,9 +263,12 @@ const propsByType = {
       eyebrow: text(60),
       heading: text(120),
       text: text(400),
-      // A page saved with the old "list your property" form shows the contact form instead.
+      // A page saved with the old "list your property" or valuation form shows the contact form.
       formType: z
-        .preprocess((v) => (v === "list_property" ? "contact" : v), z.enum(pageFormTypes))
+        .preprocess(
+          (v) => (v === "list_property" || v === "valuation" ? "contact" : v),
+          z.enum(pageFormTypes),
+        )
         .default("contact"),
       buttonLabel: text(40),
       /** What the visitor reads after sending ("We'll call you back within the hour"). */

@@ -70,7 +70,6 @@ test("every public route renders with the demo data", async ({ page }) => {
   // Page builder pages from the seed (08 §1), in their templates.
   await expectPage(page, "/about", "A small team that visits every home");
   await expectPage(page, "/contact", "Talk to us");
-  await expectPage(page, "/sell-with-us", "Sell or let your home with people who know it");
   await expectPage(page, "/off-plan-guide", "Buying off-plan in Dubai, step by step");
   await expectPage(page, "/how-we-verify", "How we verify listings");
   await expectPage(page, "/privacy-policy", "Privacy policy");

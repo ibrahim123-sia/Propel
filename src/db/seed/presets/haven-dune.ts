@@ -1253,8 +1253,6 @@ export const havenDune: SeedPreset = {
       links: [
         { label: "About us", page: "about" },
         { label: "Our agents", url: "/agents" },
-        { label: "Sell with us", page: "sell-with-us" },
-        { label: "Free valuation", url: "/valuation" },
         { label: "Contact", page: "contact" },
       ],
     },

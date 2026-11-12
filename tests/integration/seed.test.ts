@@ -162,21 +162,20 @@ describe("demo seed: Haven & Dune", () => {
       ["how-we-verify", "legal"],
       ["off-plan-guide", "default"],
       ["privacy-policy", "legal"],
-      ["sell-with-us", "default"],
       ["terms", "legal"],
     ]);
     expect(list.every((p) => p.status === "published" && p.revisions === 1)).toBe(true);
-    const page = await findPublicPage("sell-with-us");
+    const page = await findPublicPage("about");
     expect(page?.sections.map((x) => x.type)).toEqual([
       "hero_simple",
-      "promise_strip",
       "text_image",
-      "form",
+      "stats",
+      "team",
       "testimonials",
-      "faq",
+      "cta",
     ]);
     // Images point at pictures the seed drew.
-    expect(page?.sections[0]?.props).toMatchObject({ imageId: expect.any(String) });
+    expect(page?.sections[1]?.props).toMatchObject({ imageId: expect.any(String) });
     const legal = await loadSettings("legal", await getDb());
     const ids = await rows<{ id: string; slug: string }>("select id, slug from pages");
     const slugOf = (id: string | null) => ids.find((r) => r.id === id)?.slug;

@@ -68,13 +68,11 @@ export const cms = {
     send: {
       contact: "Send message",
       callback: "Call me back",
-      valuation: "Request a valuation",
       newsletter: "Subscribe",
     },
     success: {
       contact: "Thank you. We have your message and will reply by phone, WhatsApp or email.",
       callback: "Thank you. We'll call you back on the number you gave.",
-      valuation: "Thank you. A consultant will contact you to arrange the valuation.",
       newsletter: "Thank you. Check your inbox and confirm with the link we sent.",
     },
   },

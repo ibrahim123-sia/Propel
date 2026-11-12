@@ -17,7 +17,7 @@ export async function seedNewsletter(db: Db, { now }: { now: Date }): Promise<vo
   await patchSettings(db, "website", { footer: { ...website.footer, newsletter: true } }, system);
   const people = [
     { email: "amira.k@example.com", source: "footer", daysAgo: 52, confirmed: true },
-    { email: "j.whitfield@example.com", source: "page:sell-with-us", daysAgo: 40, confirmed: true },
+    { email: "j.whitfield@example.com", source: "page:about", daysAgo: 40, confirmed: true },
     { email: "noor.hassan@example.com", source: "footer", daysAgo: 33, confirmed: true },
     {
       email: "daniel.ortiz@example.com",

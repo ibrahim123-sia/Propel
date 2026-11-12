@@ -22,7 +22,6 @@ import { dailySummaryJob } from "@/features/reports/daily";
 import { demoResetJob } from "@/features/demo/reset";
 import { weeklyReportJob } from "@/features/reports/weekly";
 import { brochureRenderJob } from "@/features/brochure/jobs";
-import { ownerRequestNotifyJob } from "@/features/valuation/notify";
 import type { JobDefinition } from "./types";
 
 /** Every queue job by name (13-integrations-and-jobs.md §2). */
@@ -48,7 +47,6 @@ const jobs: JobDefinition[] = [
   dailySummaryJob as JobDefinition,
   demoResetJob as JobDefinition,
   brochureRenderJob as JobDefinition,
-  ownerRequestNotifyJob as JobDefinition,
   embedJob as JobDefinition,
   embedBackfillJob as JobDefinition,
   customerReplyJob as JobDefinition,

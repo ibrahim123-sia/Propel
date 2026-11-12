@@ -1,6 +1,5 @@
 import {
   BadgeCheckIcon,
-  BadgeDollarSignIcon,
   CalculatorIcon,
   Columns3Icon,
   MapPinIcon,
@@ -350,7 +349,6 @@ const toolLinks: Record<SiteTool, { href: string; icon: LucideIcon }> = {
   mortgage: { href: "/tools/mortgage", icon: CalculatorIcon },
   rental_returns: { href: "/tools/rental-returns", icon: TrendingUpIcon },
   compare: { href: "/tools/compare", icon: Columns3Icon },
-  valuation: { href: "/valuation", icon: BadgeDollarSignIcon },
 };
 
 /** 06 §3 item 7: cards for the agency's tools. */

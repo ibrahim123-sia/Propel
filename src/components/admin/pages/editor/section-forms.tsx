@@ -64,13 +64,11 @@ export const toolLabels: Record<SiteTool, string> = {
   mortgage: "Mortgage calculator",
   rental_returns: "Rental returns",
   compare: "Compare homes",
-  valuation: "Free valuation",
 };
 
 export const formTypeLabels: Record<(typeof pageFormTypes)[number], string> = {
   contact: "Contact",
   callback: "Callback request",
-  valuation: "Valuation request",
   newsletter: "Newsletter signup",
 };
 

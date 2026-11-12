@@ -12,10 +12,6 @@ const limits: Partial<Record<keyof PageFormInput, number>> = {
   phone: 30,
   message: 2000,
   preferredTime: 120,
-  area: 120,
-  propertyType: 60,
-  beds: 10,
-  expectedPrice: 40,
 };
 
 export function checkPageForm(v: PageFormInput): Partial<Record<keyof PageFormInput, string>> {
@@ -46,6 +42,5 @@ export function checkPageForm(v: PageFormInput): Partial<Record<keyof PageFormIn
     "Enter an email address or a phone number so we can reply",
   );
   if (v.formType === "contact") need(value("message") !== "", "message", "Write your message");
-  if (v.formType === "valuation") need(value("area") !== "", "area", "Say where the property is");
   return errors;
 }

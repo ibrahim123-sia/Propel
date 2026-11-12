@@ -22,8 +22,6 @@ const eventLabels: Record<NotificationEvent, string> = {
   leadNotAnswered: "Lead not answered in time",
   newViewing: "New viewing",
   viewingCancelled: "Viewing cancelled",
-  valuationRequest: "Valuation request",
-  listingRequest: "Owner wants to list a property",
   dailySummary: "Daily summary",
   weeklyReport: "Weekly report",
   integrationError: "An integration stopped working",
