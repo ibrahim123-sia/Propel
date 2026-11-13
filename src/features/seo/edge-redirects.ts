@@ -8,9 +8,15 @@ import { matchRedirect, type RedirectRule } from "./redirect-path";
  */
 const FRESH_MS = 5_000;
 
+/*
+ * Only data is shared between requests, never a promise. On Workers a promise started by one
+ * request never settles once that request ends, so a shared "loading" promise left every later
+ * request waiting forever (pages hung with a 1101 error). Each request that needs the table
+ * fetches it itself; `refreshingAt` only stops a burst of requests from all refreshing at once.
+ */
 let rules: Map<string, RedirectRule> | null = null;
 let fetchedAt = 0;
-let loading: Promise<void> | null = null;
+let refreshingAt = 0;
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -31,22 +37,22 @@ async function selfFetch(): Promise<Fetch> {
 
 const auth = () => ({ authorization: `Bearer ${process.env.INTERNAL_JOB_SECRET ?? ""}` });
 
-function refresh(origin: string): Promise<void> {
-  loading ??= (async () => {
-    try {
-      const send = await selfFetch();
-      const res = await send(`${origin}/api/internal/redirects`, { headers: auth() });
-      if (!res.ok) return;
-      const data = (await res.json()) as { rules: Array<[string, string, string, number]> };
-      rules = new Map(data.rules.map(([from, id, to, status]) => [from, { id, to, status }]));
-      fetchedAt = Date.now();
-    } catch {
-      /* keep the copy we have; pages still redirect themselves */
-    } finally {
-      loading = null;
-    }
-  })();
-  return loading;
+async function refresh(origin: string): Promise<void> {
+  refreshingAt = Date.now();
+  try {
+    const send = await selfFetch();
+    // A slow answer must not hold up the page: without the table, pages redirect themselves.
+    const res = await send(`${origin}/api/internal/redirects`, {
+      headers: auth(),
+      signal: AbortSignal.timeout(3_000),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { rules: Array<[string, string, string, number]> };
+    rules = new Map(data.rules.map(([from, id, to, status]) => [from, { id, to, status }]));
+    fetchedAt = Date.now();
+  } catch {
+    /* keep the copy we have; pages still redirect themselves */
+  }
 }
 
 export type EdgeRedirect = { location: string; status: number };
@@ -59,8 +65,10 @@ export async function edgeRedirect(
   url: URL,
   waitUntil: (p: Promise<unknown>) => void,
 ): Promise<EdgeRedirect | null> {
+  const now = Date.now();
   if (!rules) await refresh(url.origin);
-  else if (Date.now() - fetchedAt > FRESH_MS) waitUntil(refresh(url.origin));
+  else if (now - fetchedAt > FRESH_MS && now - refreshingAt > FRESH_MS)
+    waitUntil(refresh(url.origin));
   if (!rules || rules.size === 0) return null;
   const found = matchRedirect(rules, url.pathname + url.search);
   if (!found) return null;

@@ -72,6 +72,26 @@ describe("middleware redirects", () => {
     expect(calls[0]!.url).toBe("https://havendune.example/api/internal/redirects");
   });
 
+  it("a load that never finishes does not hold up the next request", async () => {
+    // On Workers a promise from a request that ended never settles: the first load hangs.
+    let first = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        if (first) {
+          first = false;
+          return new Promise<Response>(() => {});
+        }
+        return Response.json({ rules: [["/old-about", "a", "/about", 301]] });
+      }),
+    );
+    const { edgeRedirect } = await import("@/features/seo/edge-redirects");
+    void edgeRedirect(new URL("https://x.example/old-about"), () => {});
+    expect(await edgeRedirect(new URL("https://x.example/old-about"), () => {})).toMatchObject({
+      status: 301,
+    });
+  });
+
   it("an unreachable rules endpoint means no redirect, never an error", async () => {
     vi.stubGlobal(
       "fetch",
