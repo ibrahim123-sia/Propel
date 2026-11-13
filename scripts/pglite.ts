@@ -94,7 +94,8 @@ export class PgliteWireServer {
       closed: false,
     };
     this.conns.add(conn);
-    socket.on("data", (chunk) => this.onData(conn, chunk));
+    // No encoding is set on the socket, so data always arrives as a Buffer.
+    socket.on("data", (chunk) => this.onData(conn, chunk as Buffer));
     socket.on("error", () => this.onClose(conn));
     socket.on("close", () => this.onClose(conn));
   }
