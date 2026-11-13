@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { resolveMapStyle } from "@/components/maps/map-style";
 import { Breadcrumb } from "@/components/site/breadcrumb";
 import { FaqList } from "@/components/site/content/faq-list";
@@ -159,9 +158,9 @@ export default async function AreaGuidePage(props: PageProps<"/areas/[slug]">) {
           <p className="text-[12.5px] text-text-muted">{t.liveCounts}</p>
         </section>
 
-        <Suspense fallback={null}>
-          <PriceTrendsSection locationId={g.location.id} />
-        </Suspense>
+        {/* No Suspense of its own: its data is cached, and a boundary nested in this
+            per-request page left the cached page hanging on Workers (as on /buy). */}
+        <PriceTrendsSection locationId={g.location.id} />
 
         {g.highlights.length > 0 && (
           <section aria-labelledby="living-here" className="flex flex-col gap-4">

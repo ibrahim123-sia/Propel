@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { Badge } from "@/components/site/badge-chip";
@@ -314,14 +313,14 @@ export default async function PropertyPage(props: PageProps<"/property/[slug]">)
             <Investment listing={l} ctx={ctx} roi={market.roi} simulatorHref={roiHref} />
             <PriceHistory listing={l} ctx={ctx} />
             {l.locationId && (
-              <Suspense fallback={null}>
-                <PriceTrendsSection
-                  locationId={l.locationId}
-                  typeSlug={l.type?.slug ?? null}
-                  only={l.purpose}
-                  small
-                />
-              </Suspense>
+              // No Suspense of its own: its data is cached, and a boundary nested in this
+              // per-request page left the cached page hanging on Workers (as on /buy).
+              <PriceTrendsSection
+                locationId={l.locationId}
+                typeSlug={l.type?.slug ?? null}
+                only={l.purpose}
+                small
+              />
             )}
             <ProjectBlock listing={l} />
           </div>
