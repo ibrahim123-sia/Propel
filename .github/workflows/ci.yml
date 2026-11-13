@@ -163,6 +163,8 @@ jobs:
       BETTER_AUTH_URL: ${{ vars.PRODUCTION_APP_URL }}
       PROPEL_ENV: production
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+      # Temporary: OpenNext debug logs, to find where cached property and area pages stall.
+      OPEN_NEXT_DEBUG: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
