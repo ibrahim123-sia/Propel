@@ -22,3 +22,5 @@ auditConfig:
     # body-parser via @opennextjs/aws > express, used by OpenNext's Node server, not on Workers.
     # The fix (2.4.0, 2026-10-22) is too new to adopt yet; override it after 2026-11-05.
     - GHSA-27r3-jxmh-p828
+patchedDependencies:
+  next@16.4.6: patches/next@16.4.6.patch
