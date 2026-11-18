@@ -46,7 +46,7 @@
     "@dnd-kit/modifiers": "9.0.0",
     "@dnd-kit/sortable": "10.0.0",
     "@dnd-kit/utilities": "3.2.2",
-    "@hookform/resolvers": "6.0.0",
+    "@hookform/resolvers": "7.0.6",
     "@opennextjs/cloudflare": "1.20.16",
     "@react-email/components": "1.0.12",
     "@react-email/render": "2.2.0",
