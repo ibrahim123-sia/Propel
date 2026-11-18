@@ -129,66 +129,50 @@ index c3d660a27f186bb0705faba68fd5b8c9960815c8..eca6cad729cff56bd735e443b744fa4d
  Reason: ${i}`)}}function tJ(e,t,r){if(!tW(r))throw new tX(e,t,"",`Props must be returned as a plain object from ${t}: \`{ props: { ... } }\` (received: \`${tB(r)}\`).`);function i(r,i,a){if(r.has(i))throw new tX(e,t,a,`Circular references cannot be expressed in JSON (references: \`${r.get(i)||"(self)"}\`).`);r.set(i,a)}return function r(a,n,s){let o=typeof n;if(null===n||"boolean"===o||"number"===o||"string"===o)return!0;if("undefined"===o)throw new tX(e,t,s,"`undefined` cannot be serialized as JSON. Please use `null` or omit this value.");if(tW(n)){if(i(a,n,s),Object.entries(n).every(([e,t])=>{let i=tV.test(e)?`${s}.${e}`:`${s}[${JSON.stringify(e)}]`,n=new Map(a);return r(n,e,i)&&r(n,t,i)}))return!0;throw new tX(e,t,s,"invariant: Unknown error encountered in Object.")}if(Array.isArray(n)){if(i(a,n,s),n.every((e,t)=>r(new Map(a),e,`${s}[${t}]`)))return!0;throw new tX(e,t,s,"invariant: Unknown error encountered in Array.")}throw new tX(e,t,s,"`"+o+"`"+("object"===o?` ("${Object.prototype.toString.call(n)}")`:"")+" cannot be serialized as JSON. Please only return JSON serializable data types.")}(new Map,r,"")}let tK=tH().createContext({}),tZ=tH().createContext(null),tY=[],tQ=[];function t0(e){let t=e(),r={loading:!0,loaded:null,error:null};return r.promise=t.then(e=>(r.loading=!1,r.loaded=e,e)).catch(e=>{throw r.loading=!1,r.error=e,e}),r}class t1{constructor(e,t){this._loadFn=e,this._opts=t,this._callbacks=new Set,this._delay=null,this._timeout=null,this.retry()}promise(){return this._res.promise}retry(){this._clearTimeouts(),this._res=this._loadFn(this._opts.loader),this._state={pastDelay:!1,timedOut:!1};let{_res:e,_opts:t}=this;e.loading&&("number"==typeof t.delay&&(0===t.delay?this._state.pastDelay=!0:this._delay=setTimeout(()=>{this._update({pastDelay:!0})},t.delay)),"number"==typeof t.timeout&&(this._timeout=setTimeout(()=>{this._update({timedOut:!0})},t.timeout)));this._res.promise.then(()=>{this._update({}),this._clearTimeouts()}).catch(e=>{this._update({}),this._clearTimeouts()}),this._update({})}_update(e){this._state={...this._state,error:this._res.error,loaded:this._res.loaded,loading:this._res.loading,...e},this._callbacks.forEach(e=>e())}_clearTimeouts(){clearTimeout(this._delay),clearTimeout(this._timeout)}getCurrentValue(){return this._state}subscribe(e){return this._callbacks.add(e),()=>{this._callbacks.delete(e)}}}function t2(e){let t=Object.assign({loader:null,loading:null,delay:200,timeout:null,webpack:null,modules:null},e),r=null;function i(){if(!r){let e=new t1(t0,t);r={getCurrentValue:e.getCurrentValue.bind(e),subscribe:e.subscribe.bind(e),retry:e.retry.bind(e),promise:e.promise.bind(e)}}return r.promise()}function a(e,a){let n;i(),(n=tH().useContext(tZ))&&Array.isArray(t.modules)&&t.modules.forEach(e=>{n(e)});let s=tH().useSyncExternalStore(r.subscribe,r.getCurrentValue,r.getCurrentValue);return tH().useImperativeHandle(a,()=>({retry:r.retry}),[]),tH().useMemo(()=>{var i;return s.loading||s.error?tH().createElement(t.loading,{isLoading:s.loading,pastDelay:s.pastDelay,timedOut:s.timedOut,error:s.error,retry:r.retry}):s.loaded?tH().createElement((i=s.loaded)&&i.default?i.default:i,e):null},[e,s])}return tY.push(i),a.preload=()=>i(),a.displayName="LoadableComponent",tH().forwardRef(a)}function t3(e,t){let r=[];for(;e.length;){let i=e.pop();r.push(i(t))}return Promise.all(r).then(()=>{if(e.length)return t3(e,t)})}t2.preloadAll=()=>new Promise((e,t)=>{t3(tY).then(e,t)}),t2.preloadReady=(e=[])=>new Promise(t=>{let r=()=>t();t3(tQ,e).then(r,r)});let t4=t2,t8=tH().createContext(null),t9=(0,tU.createContext)(void 0);function t6(){let e=(0,tU.useContext)(t9);if(!e)throw Error(`<Html> should not be imported outside of pages/_document.
  Read more: https://nextjs.org/docs/messages/no-document-import-in-page`);return e}var t7=((l={})[l.SeeOther=303]="SeeOther",l[l.TemporaryRedirect=307]="TemporaryRedirect",l[l.PermanentRedirect=308]="PermanentRedirect",l);let t5=new Set([301,302,303,307,308]);function re(e){return e.statusCode||(e.permanent?t7.PermanentRedirect:t7.TemporaryRedirect)}new WeakMap;let rt=tH().createContext({deviceSizes:[640,750,828,1080,1200,1920,2048,3840],imageSizes:[32,48,64,96,128,256,384],path:"/_next/image",loader:"default",loaderFile:"",domains:[],disableStaticImages:!1,minimumCacheTTL:14400,formats:["image/webp"],maximumDiskCacheSize:void 0,maximumRedirects:3,maximumResponseBody:5e7,dangerouslyAllowLocalIP:!1,dangerouslyAllowSVG:!1,contentSecurityPolicy:"script-src 'none'; frame-src 'none'; sandbox;",contentDispositionType:"attachment",localPatterns:void 0,remotePatterns:[],qualities:[75],unoptimized:!1,customCacheHandler:!1});var rr=a("./dist/compiled/strip-ansi/index.js"),ri=a.n(rr);let ra=["_rsc"];class rn extends Error{constructor(){super("Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams")}}class rs extends URLSearchParams{append(){throw new rn}delete(){throw new rn}set(){throw new rn}sort(){throw new rn}}let ro=(0,tU.createContext)(null),rl=(0,tU.createContext)(null),rd=(0,tU.createContext)(null),rc=(0,tU.createContext)(null);function ru(e,t){let r=Promise.resolve(t);return r.status="fulfilled",r.value=t,r.displayName=`${e} (SSR)`,r}function rh({children:e,router:t,...r}){let i=(0,tU.useRef)(r.isAutoExport),a=(0,tU.useMemo)(()=>{let e,r=i.current;if(r&&(i.current=!1),$(t.pathname)){if(t.isFallback)return null;if(r&&!t.isReady)return null}try{e=new URL(t.asPath,"http://f")}catch(e){return"/"}return e.pathname},[t.asPath,t.isFallback,t.isReady,t.pathname]);return(0,tL.jsx)(rl.Provider,{value:a,children:e})}let rp=tH().createContext(null),rf=tH().createContext(null),rm=tH().createContext(null),rg=tH().createContext(null),rv=tH().createContext(new Set),ry=Symbol.for("NextjsError"),rx=/^'nonce-([A-Za-z0-9+/_-]+={0,2})'$/,rb="<!DOCTYPE html>";function rP(){throw Error('No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance')}async function rw(e){let t=await tq().renderToReadableStream(e);return await t.allReady,e0(t)}e=a("./dist/esm/server/api-utils/node/try-get-preview-data.js").tryGetPreviewData,t=a("./dist/esm/build/output/log.js").R8,r=a("./dist/esm/server/post-process.js").F;class rS{constructor(e,t,r,{isFallback:i},a,n,s,o,l,d,c,u){this.route=e.replace(/\/$/,"")||"/",this.pathname=e,this.query=t,this.asPath=r,this.isFallback=i,this.basePath=n,this.locale=s,this.locales=o,this.defaultLocale=l,this.isReady=a,this.domainLocales=d,this.isPreview=!!c,this.isLocaleDomain=!!u}push(){rP()}replace(){rP()}reload(){rP()}back(){rP()}forward(){rP()}prefetch(){rP()}beforePopState(){rP()}}function rE(e,t,r){return(0,tL.jsx)(e,{Component:t,...r})}let rC=(e,t)=>{let r=`invalid-${e.toLocaleLowerCase()}-value`;return`Additional keys were returned from \`${e}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
 diff --git a/dist/esm/server/response-cache/index.js b/dist/esm/server/response-cache/index.js
-index 8d629a259f07fae2f8068be40ab63ff6dbe184c6..2a37064537486de010ce0c8511535b47b85bfc97 100644
+index 8d629a259f07fae2f8068be40ab63ff6dbe184c6..a7276724b4d4df9686e5149dd33c3bc6536841ff 100644
 --- a/dist/esm/server/response-cache/index.js
 +++ b/dist/esm/server/response-cache/index.js
-@@ -51,7 +51,11 @@ import { fromResponseCacheEntry, routeKindToIncrementalCacheKind, toResponseCach
-     return invocationID === TTL_SENTINEL ? undefined : invocationID;
- }
- export * from './types';
--export default class ResponseCache {
-+export default // Propel patch (Cloudflare Workers): never share a pending lookup between requests. On
-+// Workers a promise settles only in the request that made it, so a shared one left every
-+// later request for the page failing (500) or hanging. Each call gets its own key.
-+let propelBatchCall = 0;
-+class ResponseCache {
-     constructor({ minimalMode, route, maxSize = DEFAULT_MAX_SIZE, ttl = DEFAULT_TTL_MS }){
-         // The get and revalidate batchers share pending renders across invocation
-         // IDs, including failures. Invocation IDs scope reuse of completed results in
-@@ -59,13 +63,14 @@ export default class ResponseCache {
+@@ -59,13 +59,18 @@ export default class ResponseCache {
          this.getBatcher = Batcher.create({
              // Ensure on-demand revalidate doesn't block normal requests, it should be
              // safe to run an on-demand revalidate for the same key as a normal request.
 -            cacheKeyFn: ({ key, isOnDemandRevalidate })=>`${key}-${isOnDemandRevalidate ? '1' : '0'}`,
-+            cacheKeyFn: ({ key, isOnDemandRevalidate })=>`${key}-${isOnDemandRevalidate ? '1' : '0'}-${++propelBatchCall}`,
++            // Propel patch (Cloudflare Workers): a unique key per call, so a pending lookup is never
++            // shared between requests. On Workers a promise settles only in the request that made
++            // it; shared, it left every later request for the page failing (500) or hanging.
++            cacheKeyFn: ({ key, isOnDemandRevalidate })=>`${key}-${isOnDemandRevalidate ? '1' : '0'}-${globalThis.__propelBatchCall=(globalThis.__propelBatchCall||0)+1}`,
              // We wait to do any async work until after we've added our promise to
              // `pendingResponses` to ensure that any any other calls will reuse the
              // same promise until we've fully finished our work.
              schedulerFn: scheduleOnNextTick
          });
          this.revalidateBatcher = Batcher.create({
-+            cacheKeyFn: (key)=>`${key}-${++propelBatchCall}`,
++            // Propel patch: see getBatcher above.
++            cacheKeyFn: (key)=>`${key}-${globalThis.__propelBatchCall=(globalThis.__propelBatchCall||0)+1}`,
              // We wait to do any async work until after we've added our promise to
              // `pendingResponses` to ensure that any any other calls will reuse the
              // same promise until we've fully finished our work.
 diff --git a/dist/server/response-cache/index.js b/dist/server/response-cache/index.js
-index c8008b7fbb187cb0c1d56a9637362944497ea9f6..dc6ddf3ec56eb552b84267ccaac33a8e9106d4e1 100644
+index c8008b7fbb187cb0c1d56a9637362944497ea9f6..6c39240cbf4a5cbc70266479b276cdf728647391 100644
 --- a/dist/server/response-cache/index.js
 +++ b/dist/server/response-cache/index.js
-@@ -74,6 +74,10 @@ function _export_star(from, to) {
-     const invocationID = compoundKey.slice(separatorIndex + 1);
-     return invocationID === TTL_SENTINEL ? undefined : invocationID;
- }
-+// Propel patch (Cloudflare Workers): never share a pending lookup between requests. On
-+// Workers a promise settles only in the request that made it, so a shared one left every
-+// later request for the page failing (500) or hanging. Each call gets its own key.
-+let propelBatchCall = 0;
- class ResponseCache {
-     constructor({ minimalMode, route, maxSize = DEFAULT_MAX_SIZE, ttl = DEFAULT_TTL_MS }){
-         // The get and revalidate batchers share pending renders across invocation
-@@ -82,13 +86,14 @@ class ResponseCache {
+@@ -82,13 +82,18 @@ class ResponseCache {
          this.getBatcher = _batcher.Batcher.create({
              // Ensure on-demand revalidate doesn't block normal requests, it should be
              // safe to run an on-demand revalidate for the same key as a normal request.
 -            cacheKeyFn: ({ key, isOnDemandRevalidate })=>`${key}-${isOnDemandRevalidate ? '1' : '0'}`,
-+            cacheKeyFn: ({ key, isOnDemandRevalidate })=>`${key}-${isOnDemandRevalidate ? '1' : '0'}-${++propelBatchCall}`,
++            // Propel patch (Cloudflare Workers): a unique key per call, so a pending lookup is never
++            // shared between requests. On Workers a promise settles only in the request that made
++            // it; shared, it left every later request for the page failing (500) or hanging.
++            cacheKeyFn: ({ key, isOnDemandRevalidate })=>`${key}-${isOnDemandRevalidate ? '1' : '0'}-${globalThis.__propelBatchCall=(globalThis.__propelBatchCall||0)+1}`,
              // We wait to do any async work until after we've added our promise to
              // `pendingResponses` to ensure that any any other calls will reuse the
              // same promise until we've fully finished our work.
              schedulerFn: _scheduler.scheduleOnNextTick
          });
          this.revalidateBatcher = _batcher.Batcher.create({
-+            cacheKeyFn: (key)=>`${key}-${++propelBatchCall}`,
++            // Propel patch: see getBatcher above.
++            cacheKeyFn: (key)=>`${key}-${globalThis.__propelBatchCall=(globalThis.__propelBatchCall||0)+1}`,
              // We wait to do any async work until after we've added our promise to
              // `pendingResponses` to ensure that any any other calls will reuse the
              // same promise until we've fully finished our work.
