@@ -301,7 +301,7 @@ export async function suggestAltText(
     "alt_text",
     prompt("alt-text", { maxLength: ALT_MAX }),
     [
-      { type: "image", url: siteUrl(`/media/${file.key}?w=1024`) },
+      { type: "image", url: siteUrl(`/media/${file.key}?w=1080`) },
       { type: "text", text: data("context", context) },
     ],
     { db, provider: options.provider, maxTokens: 200 },

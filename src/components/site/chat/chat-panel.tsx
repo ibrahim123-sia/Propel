@@ -44,7 +44,7 @@ function Cards({ cards }: { cards: ChatCard[] }) {
             {c.photo && (
               // eslint-disable-next-line @next/next/no-img-element -- a small /media thumbnail
               <img
-                src={`${c.photo.url}${c.photo.url.includes("?") ? "&" : "?"}w=160`}
+                src={`${c.photo.url}${c.photo.url.includes("?") ? "&" : "?"}w=256`}
                 alt=""
                 width={64}
                 height={48}

@@ -72,7 +72,7 @@ export function OwnerRequests({
                       <a href={p.url} target="_blank" rel="noopener noreferrer">
                         {/* eslint-disable-next-line @next/next/no-img-element -- a small library thumbnail */}
                         <img
-                          src={`${p.url}?w=160`}
+                          src={`${p.url}?w=128`}
                           alt={`Owner photo ${i + 1}`}
                           className="aspect-square w-full rounded object-cover"
                         />
