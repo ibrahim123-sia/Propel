@@ -2,7 +2,7 @@
 
 import { CalendarCheckIcon, MessageCircleIcon, PhoneIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LazyDialog } from "@/components/ui/lazy-dialog";
 import type { InquiryKind } from "@/features/inquiries/schema";
@@ -38,6 +38,15 @@ const titles: Record<InquiryKind, string> = {
   callback: t.form.callbackTitle,
 };
 
+/** True once when the address asks for the booking (?tour=1); the parameter is then removed. */
+export function takeTourParam(): boolean {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("tour") !== "1") return false;
+  url.searchParams.delete("tour");
+  window.history.replaceState(window.history.state, "", url);
+  return true;
+}
+
 /** One dialog for "Book a tour" and "Request a callback" (the tour flow proper is Phase 6). */
 export function useInquiryDialog(info: ContactInfo) {
   const [kind, setKind] = useState<InquiryKind | null>(null);
@@ -67,6 +76,11 @@ export function useInquiryDialog(info: ContactInfo) {
 export function ContactActions({ info }: { info: ContactInfo }) {
   const { open, dialog } = useInquiryDialog(info);
   const [showNumber, setShowNumber] = useState(false);
+  // "Book tour" on a chat card links here with ?tour=1: open the booking straight away.
+  useEffect(() => {
+    // Not cancelled on cleanup: the parameter is read once (Strict Mode runs effects twice).
+    if (takeTourParam()) requestAnimationFrame(() => open("tour"));
+  }, [open]);
   return (
     <div className="flex flex-col gap-2">
       <Button size="md" onClick={() => open("tour")}>
