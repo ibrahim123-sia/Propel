@@ -17,6 +17,9 @@ export const chat = {
   typing: "Typing…",
   person: "Talk to a person",
   listings: "Homes",
+  cardOpen: "Open",
+  cardTour: "Book tour",
+  subtitle: "Ask about homes, prices or viewings",
   failed: "Could not send. Please try again.",
   /** The small form in the chat (after the 5th and 10th message) and the stop at the 15th. */
   contactTitle: "Want the team to follow up?",

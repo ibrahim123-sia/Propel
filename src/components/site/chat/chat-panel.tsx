@@ -31,33 +31,65 @@ const pagePath = () => `${window.location.pathname}${window.location.search}`.sl
 const field =
   "w-full rounded-xl border border-border bg-surface px-3 py-2 text-[15px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
-/** Listings the assistant showed, with live prices (10 §2: cards instead of long text). */
+const photoUrl = (url: string, w: number) => `${url}${url.includes("?") ? "&" : "?"}w=${w}`;
+
+/** The booking straight from a card: the listing or project page opens its "Book a tour". */
+const tourHref = (href: string) => `${href}${href.includes("?") ? "&" : "?"}tour=1`;
+
+/**
+ * Listings the assistant showed, with live prices (10 §2: cards instead of long text), side by
+ * side in a row that scrolls sideways: photo, price, title and facts, then Open and Book tour.
+ */
 function Cards({ cards }: { cards: ChatCard[] }) {
   return (
-    <ul aria-label={t.listings} className="mt-2 flex flex-col gap-2">
+    <ul
+      aria-label={t.listings}
+      className="-mx-4 flex snap-x snap-mandatory scroll-px-4 [scrollbar-width:thin] gap-3 overflow-x-auto px-4 pb-2"
+    >
       {cards.map((c) => (
-        <li key={c.id}>
-          <a
-            href={c.href}
-            className="flex gap-3 rounded-xl border border-border bg-surface p-2 text-ink hover:border-ink focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
-          >
-            {c.photo && (
-              // eslint-disable-next-line @next/next/no-img-element -- a small /media thumbnail
+        <li
+          key={c.id}
+          className="flex w-[15.5rem] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-soft"
+        >
+          <a href={c.href} className="block" tabIndex={-1} aria-hidden>
+            {c.photo ? (
+              // eslint-disable-next-line @next/next/no-img-element -- a /media variant sized for the card
               <img
-                src={`${c.photo.url}${c.photo.url.includes("?") ? "&" : "?"}w=256`}
+                src={photoUrl(c.photo.url, 384)}
                 alt=""
-                width={64}
-                height={48}
+                width={248}
+                height={155}
                 loading="lazy"
-                className="h-12 w-16 shrink-0 rounded-md object-cover"
+                className="aspect-[16/10] w-full bg-surface-muted object-cover"
               />
+            ) : (
+              <span className="block aspect-[16/10] w-full bg-surface-muted" />
             )}
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate text-[14px] font-semibold">{c.title}</span>
-              <span className="text-[13px]">{c.price}</span>
-              <span className="truncate text-[12px] text-text-muted">{c.facts}</span>
-            </span>
           </a>
+          <div className="flex flex-1 flex-col gap-1 p-3">
+            <p className="text-[16px] font-semibold text-ink">{c.price}</p>
+            <a
+              href={c.href}
+              className="line-clamp-2 text-[14px] leading-snug font-medium text-ink hover:underline"
+            >
+              {c.title}
+            </a>
+            <p className="truncate text-[12px] text-text-muted">{c.facts}</p>
+            <div className="mt-auto grid grid-cols-2 gap-2 pt-2">
+              <a
+                href={c.href}
+                className="rounded-full border border-border px-3 py-2 text-center text-[13px] font-semibold text-ink hover:border-ink"
+              >
+                {t.cardOpen}
+              </a>
+              <a
+                href={tourHref(c.href)}
+                className="rounded-full bg-ink px-3 py-2 text-center text-[13px] font-semibold text-surface hover:bg-ink/90"
+              >
+                {t.cardTour}
+              </a>
+            </div>
+          </div>
         </li>
       ))}
     </ul>
@@ -216,10 +248,22 @@ export function ChatPanel({
       role="dialog"
       aria-label={title}
       onKeyDown={(e) => e.key === "Escape" && onClose()}
-      className="fixed inset-x-0 bottom-0 z-[45] flex max-h-[85dvh] flex-col rounded-t-[20px] border border-border bg-surface shadow-soft sm:inset-x-auto sm:end-6 sm:bottom-6 sm:w-[24rem] sm:rounded-[20px] print:hidden"
+      className="fixed inset-x-0 bottom-0 z-[45] flex h-[88dvh] flex-col overflow-hidden rounded-t-[20px] border border-border bg-surface shadow-soft sm:inset-x-auto sm:end-6 sm:bottom-6 sm:h-[min(44rem,calc(100dvh-3rem))] sm:w-[27rem] sm:rounded-[20px] print:hidden"
     >
-      <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <h2 className="font-display text-[18px] text-ink">{title}</h2>
+      <header className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <span
+          aria-hidden
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-ink font-display text-[17px] text-surface"
+        >
+          {title.trim().charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-display text-[18px] leading-tight text-ink">{title}</h2>
+          <p className="flex items-center gap-1.5 text-[12px] text-text-muted">
+            <span aria-hidden className="size-2 rounded-full bg-emerald-500" />
+            {t.subtitle}
+          </p>
+        </div>
         <button
           type="button"
           onClick={onClose}
@@ -231,23 +275,28 @@ export function ChatPanel({
       </header>
       <ol
         aria-label={title}
-        className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3 text-[15px]"
+        className="flex flex-1 flex-col gap-2.5 overflow-x-hidden overflow-y-auto bg-surface-muted/40 px-4 py-4 text-[15px] leading-relaxed"
       >
-        <li className="max-w-[85%] self-start rounded-2xl bg-surface-muted px-3 py-2 text-ink">
+        <li className="max-w-[85%] self-start rounded-2xl rounded-bl-md bg-surface px-3.5 py-2.5 text-ink shadow-soft">
           {greeting}
         </li>
         {messages.map((m) => (
-          <li
-            key={m.id}
-            className={cn(
-              "max-w-[85%] rounded-2xl px-3 py-2 whitespace-pre-wrap",
-              m.mine ? "self-end bg-ink text-surface" : "self-start bg-surface-muted text-ink",
+          <li key={m.id} className="flex flex-col gap-2">
+            {m.body.trim() && (
+              <p
+                className={cn(
+                  "max-w-[85%] rounded-2xl px-3.5 py-2.5 whitespace-pre-wrap",
+                  m.mine
+                    ? "self-end rounded-br-md bg-ink text-surface"
+                    : "self-start rounded-bl-md bg-surface text-ink shadow-soft",
+                )}
+              >
+                <span className="sr-only">
+                  {m.mine ? t.you : m.sender === "ai" ? t.assistant : t.team}:{" "}
+                </span>
+                {m.body}
+              </p>
             )}
-          >
-            <span className="sr-only">
-              {m.mine ? t.you : m.sender === "ai" ? t.assistant : t.team}:{" "}
-            </span>
-            {m.body}
             {m.cards.length > 0 && <Cards cards={m.cards} />}
           </li>
         ))}
