@@ -3,14 +3,20 @@
 import { XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "cn";
-import { askForPerson, sendChatMessage, startChat } from "@/features/chat/actions";
+import { askForPerson, saveChatContact, sendChatMessage, startChat } from "@/features/chat/actions";
 import type { ChatCard, ChatMessage } from "@/features/chat/schema";
+import { CHAT_CONTACT_ASK_AFTER, CHAT_CONTACT_REQUIRED_AFTER } from "@/features/chat/limits";
 import { chat as t } from "@/lib/i18n/dictionaries/chat";
 
 type Status = "ai" | "needs_human" | "human" | "closed";
 type Poll = {
   enabled: boolean;
-  conversation: { id: string; status: Status } | null;
+  conversation: {
+    id: string;
+    status: Status;
+    hasContact: boolean;
+    visitorMessages: number;
+  } | null;
   messages: ChatMessage[];
 };
 
@@ -93,6 +99,11 @@ export function ChatPanel({
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [contact, setContact] = useState({ hasContact: true, visitorMessages: 0 });
+  /** The visitor's message count when they closed the details form (it returns later). */
+  const [dismissedAt, setDismissedAt] = useState(0);
+  const [details, setDetails] = useState({ name: "", phone: "", email: "", website: "" });
+  const [detailsErrors, setDetailsErrors] = useState<Record<string, string[]>>({});
   const last = useRef<string | null>(null);
   const panel = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLLIElement>(null);
@@ -105,6 +116,10 @@ export function ChatPanel({
       if (!data.conversation) return setStarted(false);
       setStarted(true);
       setStatus(data.conversation.status);
+      setContact({
+        hasContact: data.conversation.hasContact,
+        visitorMessages: data.conversation.visitorMessages,
+      });
       if (data.messages.length) {
         last.current = data.messages.at(-1)!.createdAt;
         setMessages((cur) =>
@@ -134,7 +149,7 @@ export function ChatPanel({
   }, [started]);
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
+  }, [messages.length, contact.visitorMessages]);
 
   const submitStart = async () => {
     setBusy(true);
@@ -170,6 +185,24 @@ export function ChatPanel({
     fastUntil.current = Date.now() + FAST_POLL_FOR_MS;
     await load();
   };
+  const submitDetails = async () => {
+    setBusy(true);
+    setError(null);
+    const res = await saveChatContact({ ...details, page: pagePath() }).catch(() => null);
+    setBusy(false);
+    if (!res) return setError(t.failed);
+    if (!res.ok) return setDetailsErrors(res.fieldErrors ?? { name: [res.error] });
+    setDetailsErrors({});
+    setContact((c) => ({ ...c, hasContact: true }));
+    fastUntil.current = Date.now() + FAST_POLL_FOR_MS;
+    await load();
+  };
+  const sent = contact.visitorMessages;
+  const required = sent >= CHAT_CONTACT_REQUIRED_AFTER;
+  const step = required
+    ? sent
+    : ([...CHAT_CONTACT_ASK_AFTER].reverse().find((n) => sent >= n) ?? 0);
+  const showDetails = started === true && !contact.hasContact && step > 0 && dismissedAt < step;
   const lastMine = messages.at(-1)?.mine ?? false;
   const sentByMe = messages.filter((m) => m.mine).length;
   const showPerson =
@@ -218,7 +251,94 @@ export function ChatPanel({
             {m.cards.length > 0 && <Cards cards={m.cards} />}
           </li>
         ))}
-        {started && lastMine && status === "ai" && (
+        {showDetails && (
+          <li className="self-stretch">
+            <form
+              aria-label={t.contactTitle}
+              className="relative flex flex-col gap-2 rounded-2xl border border-border bg-surface p-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submitDetails();
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setDismissedAt(step)}
+                aria-label={t.contactLater}
+                className="absolute end-2 top-2 rounded-full p-1 hover:bg-surface-muted"
+              >
+                <XIcon className="size-4" aria-hidden />
+              </button>
+              <p className="pe-6 text-[14px] font-semibold text-ink">{t.contactTitle}</p>
+              <p className="text-[13px] text-text-muted">
+                {required ? t.contactRequired : t.contactText}
+              </p>
+              <input
+                className={field}
+                aria-label={t.name}
+                placeholder={t.name}
+                autoComplete="name"
+                value={details.name}
+                onChange={(e) => setDetails({ ...details, name: e.target.value })}
+              />
+              {detailsErrors.name?.[0] && (
+                <span className="text-[13px] text-red-700">{detailsErrors.name[0]}</span>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  className={field}
+                  type="tel"
+                  aria-label={t.phone}
+                  placeholder={t.phone}
+                  autoComplete="tel"
+                  value={details.phone}
+                  onChange={(e) => setDetails({ ...details, phone: e.target.value })}
+                />
+                <input
+                  className={field}
+                  type="email"
+                  aria-label={t.email}
+                  placeholder={t.email}
+                  autoComplete="email"
+                  value={details.email}
+                  onChange={(e) => setDetails({ ...details, email: e.target.value })}
+                />
+              </div>
+              {(detailsErrors.phone?.[0] ?? detailsErrors.email?.[0]) && (
+                <span className="text-[13px] text-red-700">
+                  {detailsErrors.phone?.[0] ?? detailsErrors.email?.[0]}
+                </span>
+              )}
+              <input
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden
+                className="hidden"
+                value={details.website}
+                onChange={(e) => setDetails({ ...details, website: e.target.value })}
+              />
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="rounded-full bg-ink px-4 py-2 text-[14px] font-semibold text-surface disabled:opacity-60"
+                >
+                  {busy ? t.contactSaving : t.contactSave}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDismissedAt(step)}
+                  className="text-[13px] font-semibold text-text-muted underline underline-offset-2"
+                >
+                  {t.contactLater}
+                </button>
+              </div>
+            </form>
+          </li>
+        )}
+        {started && lastMine && status === "ai" && !required && (
           <li className="self-start text-[13px] text-text-muted" role="status">
             {t.typing}
           </li>

@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { getDb } from "@/db/client";
 import { parseVisitorCookie, VISITOR_COOKIE } from "@/features/attribution/visitor-cookie";
-import { chatMessages, visitorChat } from "@/features/chat/store";
+import { chatContactState, chatMessages, visitorChat } from "@/features/chat/store";
 import { loadSettings } from "@/features/settings/queries";
 import { currentAgencyId } from "@/db/schema/_common";
 import { visitors } from "@/db/schema/crm";
@@ -39,10 +39,12 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ enabled: true, conversation: null, messages: [] }, { headers: noStore });
   const after = new URL(request.url).searchParams.get("after");
   const since = after && !Number.isNaN(Date.parse(after)) ? new Date(after) : null;
+  // When to show the small details form, and whether the assistant waits for it.
+  const contact = await chatContactState(db, conv);
   return Response.json(
     {
       enabled: true,
-      conversation: { id: conv.id, status: conv.status },
+      conversation: { id: conv.id, status: conv.status, ...contact },
       messages: await chatMessages(db, conv.id, since),
     },
     { headers: noStore },

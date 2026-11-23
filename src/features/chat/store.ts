@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt } from "drizzle-orm";
 import type { DbOrTx } from "@/db/client";
 import { currentAgencyId } from "@/db/schema/_common";
 import { messages, visitors } from "@/db/schema/crm";
@@ -9,6 +9,8 @@ import { bedsLabel, currencyFormats, priceLabel } from "@/features/properties/fo
 import { loadSettings } from "@/features/settings/queries";
 import { formatArea } from "@/lib/units";
 import type { ChatCard, ChatMessage } from "./schema";
+
+export { CHAT_CONTACT_ASK_AFTER, CHAT_CONTACT_REQUIRED_AFTER } from "./limits";
 
 /** The visitor behind the cookie, created if the beacon has not seen them yet. */
 export async function chatVisitor(db: DbOrTx, visitorKey: string): Promise<string> {
@@ -90,4 +92,29 @@ async function chatCards(db: DbOrTx, ids: string[]): Promise<Map<string, ChatCar
       },
     ]),
   );
+}
+
+export async function chatContactState(
+  db: DbOrTx,
+  conv: { id: string; contactId: string | null },
+): Promise<{ hasContact: boolean; visitorMessages: number }> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(messages)
+    .where(and(eq(messages.conversationId, conv.id), eq(messages.direction, "in")));
+  return { hasContact: Boolean(conv.contactId), visitorMessages: Number(row?.n ?? 0) };
+}
+
+/** The id of the visitor's latest message in a conversation. */
+export async function lastVisitorMessage(
+  db: DbOrTx,
+  conversationId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(and(eq(messages.conversationId, conversationId), eq(messages.direction, "in")))
+    .orderBy(desc(messages.createdAt))
+    .limit(1);
+  return row?.id ?? null;
 }

@@ -14,8 +14,23 @@ import { currentRequestMeta } from "@/lib/request";
 import { ai as aiText } from "@/lib/i18n/dictionaries/ai";
 import { format } from "@/lib/i18n";
 import { sendOutgoing } from "@/features/inbox/store";
-import { chatMessageSchema, chatStartSchema, type ChatStartInput } from "./schema";
-import { chatVisitor, visitorChat } from "./store";
+import { eq } from "drizzle-orm";
+import { conversations } from "@/db/schema/crm";
+import { chat as chatText } from "@/lib/i18n/dictionaries/chat";
+import {
+  chatContactSchema,
+  chatMessageSchema,
+  chatStartSchema,
+  type ChatContactInput,
+  type ChatStartInput,
+} from "./schema";
+import {
+  CHAT_CONTACT_REQUIRED_AFTER,
+  chatContactState,
+  chatVisitor,
+  lastVisitorMessage,
+  visitorChat,
+} from "./store";
 
 type Fail = Extract<ActionResult<never>, { ok: false }>;
 const off: Fail = { ok: false, error: "Chat is not available right now.", code: "OFF" };
@@ -174,12 +189,100 @@ export async function sendChatMessage(input: {
       body: parsed.data.text,
       at: new Date(),
     });
-    if (conv.status === "ai")
-      await queueCustomerReply(db, {
+    if (conv.status !== "ai") return { ok: true, data: { ok: true } };
+    // From the 15th message without details the assistant waits for them (the team still
+    // sees every message in the inbox).
+    const state = await chatContactState(db, conv);
+    if (!state.hasContact && state.visitorMessages >= CHAT_CONTACT_REQUIRED_AFTER) {
+      await sendOutgoing(db, {
         conversationId: conv.id,
-        messageId,
-        page: { path: parsed.data.page },
+        text: chatText.contactRequired,
+        sender: "system",
+        now: new Date(),
       });
+      return { ok: true, data: { ok: true } };
+    }
+    await queueCustomerReply(db, {
+      conversationId: conv.id,
+      messageId,
+      page: { path: parsed.data.page },
+    });
+    return { ok: true, data: { ok: true } };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+/**
+ * The visitor's details from the small form in the chat: they become (or join) a lead with
+ * source chat, linked to this conversation. When the assistant was waiting for them (15th
+ * message), it answers the visitor's last message now.
+ */
+export async function saveChatContact(
+  input: ChatContactInput,
+): Promise<ActionResult<{ ok: true }>> {
+  try {
+    const parsed = chatContactSchema.safeParse(input);
+    if (!parsed.success) {
+      const { fieldErrors, formErrors } = errorsByPath(parsed.error);
+      return {
+        ok: false,
+        error: formErrors[0] ?? "Please check the highlighted fields.",
+        code: "VALIDATION",
+        fieldErrors,
+      };
+    }
+    const data = parsed.data;
+    if (data.website) return { ok: true, data: { ok: true } };
+    if (!data.email && !data.phone)
+      return {
+        ok: false,
+        error: chatText.contactNeedOne,
+        code: "VALIDATION",
+        fieldErrors: { phone: [chatText.contactNeedOne] },
+      };
+    const db = await getDb();
+    if (!(await loadSettings("ai", db)).webChat.enabled) return off;
+    const key = await currentVisitorKey();
+    if (!key) return noVisitor;
+    const blocked = await limited(key);
+    if (blocked) return blocked;
+    const conv = await visitorChat(db, await chatVisitor(db, key));
+    if (!conv)
+      return { ok: false, error: "This chat has ended. Start a new one.", code: "NO_CHAT" };
+    const before = await chatContactState(db, conv);
+    const now = new Date();
+    const lead = await captureLead(db, {
+      source: "chat",
+      contact: { name: data.name, email: data.email || null, phone: data.phone || null },
+      message: null,
+      visitorKey: key,
+      eventType: "chat",
+      now,
+    });
+    await db
+      .update(conversations)
+      .set({ contactId: lead.contactId, leadId: conv.leadId ?? lead.leadId })
+      .where(eq(conversations.id, conv.id));
+    await sendOutgoing(db, {
+      conversationId: conv.id,
+      text: format(chatText.contactThanks, { name: data.name.split(" ")[0]! }),
+      sender: "system",
+      now,
+    });
+    const waiting =
+      conv.status === "ai" &&
+      !before.hasContact &&
+      before.visitorMessages >= CHAT_CONTACT_REQUIRED_AFTER;
+    if (waiting) {
+      const lastIn = await lastVisitorMessage(db, conv.id);
+      if (lastIn)
+        await queueCustomerReply(db, {
+          conversationId: conv.id,
+          messageId: lastIn,
+          page: { path: data.page },
+        });
+    }
     return { ok: true, data: { ok: true } };
   } catch (err) {
     return toActionError(err);

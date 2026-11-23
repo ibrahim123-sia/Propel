@@ -18,4 +18,14 @@ export const chat = {
   person: "Talk to a person",
   listings: "Homes",
   failed: "Could not send. Please try again.",
+  /** The small form in the chat (after the 5th and 10th message) and the stop at the 15th. */
+  contactTitle: "Want the team to follow up?",
+  contactText: "Leave your name and a phone or email. We'll send you homes like these.",
+  contactRequired:
+    "To keep chatting, please leave your details. Leave your details and your question; the team replies here and by email or phone.",
+  contactSave: "Send my details",
+  contactSaving: "Sending…",
+  contactLater: "Not now",
+  contactThanks: "Thanks, {name}. The team will be in touch; keep asking here.",
+  contactNeedOne: "Enter a phone number or an email.",
 } as const;
