@@ -7,6 +7,10 @@ export const viewings = {
     typeLabel: "How would you like to see it?",
     dayLabel: "Day",
     timeLabel: "Time",
+    pickTimePlaceholder: "Choose a time",
+    noTimesThatDay: "No free times on that day.",
+    nextFree: "Next free day: {day}",
+    useNextFree: "Choose {day}",
     loading: "Finding free times…",
     none: "No free times in the next few weeks. Send a message instead and we will find one.",
     failed: "We couldn't load the free times. Please try again.",
@@ -23,6 +27,7 @@ export const viewings = {
     booked: "You're booked for {when}.",
     bookedNote: "We've sent the details to your email. {agent} will be with you.",
     addToCalendar: "Add to my calendar",
+    addToGoogle: "Add to Google Calendar",
     manage: "Change or cancel",
   },
   manage: {

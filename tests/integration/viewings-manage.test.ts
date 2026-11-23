@@ -71,6 +71,29 @@ describe("viewing links (09 §5)", () => {
     );
   });
 
+  it("opens Google Calendar's new-event page filled in for the viewing", async () => {
+    const { token, slots } = await booked();
+    const { GET } = await import("@/app/api/viewings/[token]/google/route");
+    const call = (t: string) =>
+      GET(new Request(`http://localhost/api/viewings/${t}/google`), {
+        params: Promise.resolve({ token: t }),
+      } as never);
+    const res = await call(token);
+    expect(res.status).toBe(302);
+    const to = new URL(res.headers.get("location")!);
+    expect(to.origin + to.pathname).toBe("https://calendar.google.com/calendar/render");
+    expect(to.searchParams.get("action")).toBe("TEMPLATE");
+    expect(to.searchParams.get("text")).toContain("Viewing: HD-2041 · Two bed");
+    const stamp = (d: string | Date) =>
+      new Date(d)
+        .toISOString()
+        .replace(/[-:]/g, "")
+        .replace(/\.\d{3}/, "");
+    expect(to.searchParams.get("dates")).toBe(`${stamp(slots[0]!.start)}/${stamp(slots[0]!.end)}`);
+    expect(to.searchParams.get("details")).toContain(`/viewings/${token}`);
+    expect((await call("x".repeat(32))).status).toBe(404);
+  });
+
   it("finds the viewing by its link only", async () => {
     const { db, token, viewingId } = await booked();
     expect((await viewingByToken(db, token))?.viewing.id).toBe(viewingId);

@@ -95,7 +95,7 @@ test("viewings calendar: open a viewing, mark it done; book one from a lead", as
   await page.goto(`/admin/viewings/new?lead=${leadId}&property=${homeId}`);
   await expect(page.getByRole("heading", { name: "New viewing", level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: "E2E Viewer" })).toBeVisible();
-  await page.getByRole("group", { name: "Time" }).getByRole("radio").first().check({ force: true });
+  await page.getByRole("combobox", { name: "Time" }).selectOption({ index: 1 });
   await page.getByRole("button", { name: "Book viewing" }).click();
   await expect(page).toHaveURL(/\/admin\/viewings\?date=\d{4}-\d{2}-\d{2}$/);
   await expect
@@ -125,11 +125,7 @@ test("project page: book a tour at the agency's free times", async ({
   await expect(page.getByRole("heading", { name: "E2E Harbour Lofts", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "Book a tour" }).click();
   const dialog = page.getByRole("dialog", { name: "Book a tour" });
-  await dialog
-    .getByRole("group", { name: "Time" })
-    .getByRole("radio")
-    .first()
-    .check({ force: true });
+  await dialog.getByRole("combobox", { name: "Time" }).selectOption({ index: 1 });
   await dialog.getByRole("textbox", { name: "Name" }).fill("Project Visitor");
   await dialog.getByRole("textbox", { name: "Phone" }).fill("+971 50 222 3344");
   await dialog

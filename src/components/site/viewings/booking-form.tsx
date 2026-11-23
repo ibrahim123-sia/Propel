@@ -62,6 +62,11 @@ export function BookingForm({
         {booked.token && (
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline-site" size="md">
+              <a href={`/api/viewings/${booked.token}/google`} target="_blank" rel="noopener">
+                <CalendarPlusIcon aria-hidden /> {t.booking.addToGoogle}
+              </a>
+            </Button>
+            <Button asChild variant="outline-site" size="md">
               <a href={`/api/viewings/${booked.token}/ics`}>
                 <CalendarPlusIcon aria-hidden /> {t.booking.addToCalendar}
               </a>
