@@ -586,12 +586,13 @@ export const aiSchema = z.object({
     ),
   firstReplyEnabled: z.boolean().default(true),
   /**
-   * The chat button on the website (09 §1 #3). Until the assistant arrives (Phase 9) the team
-   * answers from the inbox. Off by default.
+   * The chat button on the website (09 §1 #3). Off by default. `askContactFirst` puts a name
+   * and phone form before the chat; off by default, because the assistant asks for them itself
+   * once it knows what the visitor wants (prompts/customer-system.md).
    */
   webChat: z
     .object({ enabled: z.boolean(), askContactFirst: z.boolean() })
-    .default({ enabled: false, askContactFirst: true }),
+    .default({ enabled: false, askContactFirst: false }),
   adminAssistantEnabled: z.boolean().default(true),
   allowedActions: objectOf(adminAiActions, z.boolean()).default(
     Object.fromEntries(adminAiActions.map((a) => [a, true])) as Record<

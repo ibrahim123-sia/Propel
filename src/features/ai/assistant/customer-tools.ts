@@ -2,7 +2,9 @@ import "server-only";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, type Db, type DbOrTx } from "@/db/client";
+import { currentAgencyId } from "@/db/schema/_common";
 import { contacts, conversations, leads } from "@/db/schema/crm";
+import { propertyTypes } from "@/db/schema/master-data";
 import { guideForLocation, liveCounts } from "@/features/area-guides/public";
 import { handleBrochureRequest } from "@/features/brochure/request";
 import { compareItems } from "@/features/compare/load";
@@ -670,13 +672,24 @@ export const bookViewingTool = defineTool({
 
 /* save_contact --------------------------------------------------------------------------- */
 
+/** The agency's property types named by the visitor ("villa", "Apartments"), by name or slug. */
+async function findPropertyTypeIds(db: DbOrTx, words: string[]): Promise<string[]> {
+  const rows = await db
+    .select({ id: propertyTypes.id, name: propertyTypes.name, slug: propertyTypes.slug })
+    .from(propertyTypes)
+    .where(eq(propertyTypes.agencyId, currentAgencyId()));
+  const norm = (v: string) => v.trim().toLowerCase().replace(/s$/, "");
+  const wanted = new Set(words.map(norm));
+  return rows.filter((t) => wanted.has(norm(t.name)) || wanted.has(norm(t.slug))).map((t) => t.id);
+}
+
 const timelines = ["now", "1_3_months", "3_6_months", "6_12_months", "later", "browsing"] as const;
 
 export const saveContactTool = defineTool({
   kind: "read",
   name: "save_contact",
   description:
-    "Save the visitor's contact details and what they are looking for, so the team can follow up. Use when they share a name with a phone or email.",
+    "Save the visitor's contact details and everything you learned about what they want (buy or rent, property type, areas, budget, bedrooms, timeline), so the team can follow up. This creates the lead. Use as soon as they share a name with a phone or email.",
   input: z.object({
     name: z.string().trim().min(1).max(80),
     email: z.union([z.email().max(160), z.literal("")]).default(""),
@@ -685,6 +698,11 @@ export const saveContactTool = defineTool({
     requirements: z
       .object({
         purpose: z.enum(["sale", "rent"]).optional(),
+        propertyTypes: z
+          .array(z.string().max(40))
+          .max(5)
+          .optional()
+          .describe("Kinds of home, e.g. apartment, villa, townhouse"),
         budgetMax: z.number().positive().optional().describe("Whole units of the base currency"),
         budgetMin: z.number().positive().optional(),
         areas: z.array(z.string().max(80)).max(5).optional(),
@@ -703,6 +721,7 @@ export const saveContactTool = defineTool({
     const r = input.requirements;
     const locationIds = r.areas?.length ? (await findLocations(db, r.areas)).map((l) => l.id) : [];
     const listing = input.reference ? await liveListingByReference(db, input.reference) : null;
+    const typeIds = r.propertyTypes?.length ? await findPropertyTypeIds(db, r.propertyTypes) : [];
     const decimals = market.baseCurrency.decimals;
     const lead = await captureLead(db, {
       source: leadSource(ctx),
@@ -718,6 +737,7 @@ export const saveContactTool = defineTool({
           ? { currency: market.baseCurrency.code, budgetFrom: "lead" as const }
           : {}),
         ...(locationIds.length ? { locationIds } : {}),
+        ...(typeIds.length ? { propertyTypeIds: typeIds } : {}),
         ...(r.bedsMin !== undefined ? { bedsMin: r.bedsMin } : {}),
         ...(r.timeline ? { timeline: r.timeline } : {}),
         ...(r.finance ? { finance: r.finance } : {}),
