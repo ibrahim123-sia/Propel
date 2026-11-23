@@ -152,6 +152,22 @@ index 8d629a259f07fae2f8068be40ab63ff6dbe184c6..a7276724b4d4df9686e5149dd33c3bc6
              // We wait to do any async work until after we've added our promise to
              // `pendingResponses` to ensure that any any other calls will reuse the
              // same promise until we've fully finished our work.
+diff --git a/dist/esm/server/use-cache/use-cache-wrapper.js b/dist/esm/server/use-cache/use-cache-wrapper.js
+index ccb35d81f6550cf3a42263018ad263e52d727a70..388adf14c59d4e4aa011899be211a0bdf7f82ec9 100644
+--- a/dist/esm/server/use-cache/use-cache-wrapper.js
++++ b/dist/esm/server/use-cache/use-cache-wrapper.js
+@@ -2024,7 +2024,10 @@ export async function cache(kind, id, boundArgsLength, originalFn, args) {
+         // not be registered for other requests to join. And a draft mode request
+         // must not join a pending public fill, because it would be served the
+         // published content instead of the draft.
+-        const skipCrossRequestDedupe = isPrivate && !process.env.__NEXT_DEV_SERVER || workStore.isDraftMode;
++        // Propel patch (Cloudflare Workers): never join another request's pending 'use cache'
++        // fill. On Workers a promise settles only in the request that made it, so a joiner of an
++        // ended or cancelled leader waited forever ("Worker's code had hung", Error 1101).
++        const skipCrossRequestDedupe = true;
+         try {
+             // The loop handles cross-request root param mismatches: when a
+             // cross-request joiner discovers that the leader's root params differ
 diff --git a/dist/server/response-cache/index.js b/dist/server/response-cache/index.js
 index c8008b7fbb187cb0c1d56a9637362944497ea9f6..6c39240cbf4a5cbc70266479b276cdf728647391 100644
 --- a/dist/server/response-cache/index.js
@@ -176,3 +192,19 @@ index c8008b7fbb187cb0c1d56a9637362944497ea9f6..6c39240cbf4a5cbc70266479b276cdf7
              // We wait to do any async work until after we've added our promise to
              // `pendingResponses` to ensure that any any other calls will reuse the
              // same promise until we've fully finished our work.
+diff --git a/dist/server/use-cache/use-cache-wrapper.js b/dist/server/use-cache/use-cache-wrapper.js
+index 5d1ecdac7184151473345ac6b0931a4a0e3d6247..2683bb0bbc4b07fc5f074c3f241a1050a4536cf9 100644
+--- a/dist/server/use-cache/use-cache-wrapper.js
++++ b/dist/server/use-cache/use-cache-wrapper.js
+@@ -2080,7 +2080,10 @@ async function cache(kind, id, boundArgsLength, originalFn, args) {
+         // not be registered for other requests to join. And a draft mode request
+         // must not join a pending public fill, because it would be served the
+         // published content instead of the draft.
+-        const skipCrossRequestDedupe = isPrivate && !process.env.__NEXT_DEV_SERVER || workStore.isDraftMode;
++        // Propel patch (Cloudflare Workers): never join another request's pending 'use cache'
++        // fill. On Workers a promise settles only in the request that made it, so a joiner of an
++        // ended or cancelled leader waited forever ("Worker's code had hung", Error 1101).
++        const skipCrossRequestDedupe = true;
+         try {
+             // The loop handles cross-request root param mismatches: when a
+             // cross-request joiner discovers that the leader's root params differ
