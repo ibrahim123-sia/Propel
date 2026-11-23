@@ -1,17 +1,18 @@
 import "server-only";
-import type { DbOrTx } from "@/db/client";
+import { getDb, type DbOrTx } from "@/db/client";
 import type { AiFeature } from "@/db/schema/ai";
 import { loadSettings } from "@/features/settings/queries";
 import type { SettingsOf } from "@/features/settings/schema";
 import { getSecret } from "@/features/settings/secrets";
 import { env } from "@/lib/env";
 import { AnthropicProvider } from "./providers/anthropic";
-import { FallbackProvider } from "./providers/fallback";
+import { FallbackProvider, MappedModelsProvider } from "./providers/fallback";
 import { GeminiProvider } from "./providers/gemini";
 import { GroqProvider } from "./providers/groq";
 import { MockProvider } from "./providers/mock";
 import { XaiProvider } from "./providers/xai";
 import type { AiProvider, AiProviderName } from "./types";
+import { workersAiAllowanceLeft, workersAiBaseUrl } from "./workers-ai";
 
 /**
  * Which provider and models the AI layer uses, from Settings -> Integrations (provider, models,
@@ -119,6 +120,7 @@ export async function aiKey(
   const e = env();
   return (
     {
+      workers_ai: e.CLOUDFLARE_AI_TOKEN,
       xai: e.XAI_API_KEY,
       groq: e.GROQ_API_KEY,
       gemini: e.GEMINI_API_KEY,
@@ -136,6 +138,11 @@ export function createProvider(name: AiProviderName, apiKey: string): AiProvider
 
 function makeProvider(name: AiProviderName, apiKey: string, gateway: Gateway): AiProvider {
   switch (name) {
+    case "workers_ai": {
+      const baseUrl = workersAiBaseUrl();
+      if (!baseUrl) throw new AiNotConfiguredError("CLOUDFLARE_ACCOUNT_ID is not set.");
+      return new GroqProvider({ apiKey, baseUrl, name: "workers_ai" });
+    }
     case "xai":
       return new XaiProvider({ apiKey, gateway });
     case "groq":
@@ -164,18 +171,23 @@ export async function providerFor(config: AiConfig, db?: DbOrTx): Promise<AiProv
     config.fallback && fallbackKey
       ? makeProvider(config.fallback.provider, fallbackKey, gateway)
       : null;
+  const backupModels = config.fallback
+    ? {
+        [config.models.chat]: config.fallback.models.chat,
+        [config.models.fast]: config.fallback.models.fast,
+      }
+    : {};
+  // Workers AI: the backup answers once the free daily allowance is used up (no Neurons are
+  // billed), or when the account id or token is missing.
+  if (config.provider === "workers_ai" && backup && config.fallback) {
+    const usable = Boolean(apiKey && workersAiBaseUrl());
+    if (!usable || !(await workersAiAllowanceLeft(db ?? (await getDb()))))
+      return new MappedModelsProvider(backup, backupModels, config.fallback.models.chat);
+  }
   if (!apiKey) {
     throw new AiNotConfiguredError("The AI provider key is missing.");
   }
   const primary = makeProvider(config.provider, apiKey, gateway);
   if (!backup || !config.fallback) return primary;
-  return new FallbackProvider(
-    primary,
-    backup,
-    {
-      [config.models.chat]: config.fallback.models.chat,
-      [config.models.fast]: config.fallback.models.fast,
-    },
-    config.fallback.models.chat,
-  );
+  return new FallbackProvider(primary, backup, backupModels, config.fallback.models.chat);
 }

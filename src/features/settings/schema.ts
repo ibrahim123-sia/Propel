@@ -513,14 +513,16 @@ export const integrationsSchema = z.object({
   ai: z
     .object({
       enabled: z.boolean(),
-      provider: z.enum(["xai", "groq", "gemini", "anthropic", "mock"]),
+      provider: z.enum(["workers_ai", "xai", "groq", "gemini", "anthropic", "mock"]),
       chatModel: z.string().max(80),
       fastModel: z.string().max(80),
       /**
        * A second provider asked when the first fails (down, overloaded, out of credit), with
        * its own key (`ai_fallback_api_key`) and models for the same two tiers.
        */
-      fallbackProvider: z.enum(["none", "xai", "groq", "gemini", "anthropic"]).default("none"),
+      fallbackProvider: z
+        .enum(["none", "workers_ai", "xai", "groq", "gemini", "anthropic"])
+        .default("none"),
       fallbackChatModel: z.string().trim().max(80).default(""),
       fallbackFastModel: z.string().trim().max(80).default(""),
       gatewayAccountId: z.string().max(80),

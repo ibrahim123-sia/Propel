@@ -7,6 +7,7 @@ import type { SecretKey, SettingsOf } from "@/features/settings/schema";
 import { aiProviderLabels } from "@/features/ai/provider-labels";
 import { aiKey } from "@/features/ai/config";
 import { gatewayBase } from "@/features/ai/providers/http";
+import { workersAiBaseUrl } from "@/features/ai/workers-ai";
 import type { AiProviderName } from "@/features/ai/types";
 import { testGoogleCalendar } from "./google-calendar/calendar";
 import { testMapsConnection } from "./google-maps";
@@ -121,7 +122,13 @@ async function listModels(
     if (gatewayToken) headers["cf-aig-authorization"] = `Bearer ${gatewayToken}`;
   }
   let url: string;
-  if (provider === "anthropic") {
+  if (provider === "workers_ai") {
+    const base = workersAiBaseUrl();
+    if (!base) return { ok: false, message: "Set CLOUDFLARE_ACCOUNT_ID for Workers AI." };
+    // The account's text models (the OpenAI-compatible API has no model list).
+    url = `${base.replace(/\/v1$/, "")}/models/search?task=Text%20Generation&per_page=200`;
+    headers.authorization = `Bearer ${key}`;
+  } else if (provider === "anthropic") {
     url = `${gatewayBase(gateway, "anthropic") ?? "https://api.anthropic.com"}/v1/models`;
     Object.assign(headers, { "x-api-key": key, "anthropic-version": "2023-06-01" });
   } else if (provider === "groq") {
@@ -143,9 +150,11 @@ async function listModels(
   const body = (await res.json()) as {
     data?: Array<{ id: string }>;
     models?: Array<{ name: string }>;
+    result?: Array<{ name: string }>;
   };
   const ids = [
     ...(body.data ?? []).map((m) => m.id),
+    ...(body.result ?? []).map((m) => m.name),
     ...(body.models ?? []).map((m) => m.name.replace(/^models\//, "")),
   ];
   return { ok: true, models: new Set(ids) };

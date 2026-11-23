@@ -10,7 +10,7 @@ import type { AiUsageCount } from "./types";
 
 /** `ai_usage`: requests, tokens and estimated cost per agency day, feature and model. */
 
-async function agencyToday(db: DbOrTx, now: Date): Promise<string> {
+export async function agencyToday(db: DbOrTx, now: Date): Promise<string> {
   const general = await loadSettings("general", db);
   return localDateString(now, general.timeZone);
 }

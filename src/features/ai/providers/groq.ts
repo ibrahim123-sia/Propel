@@ -20,6 +20,12 @@ import { parseSse } from "./sse";
 
 export type GroqConfig = {
   apiKey: string;
+  /**
+   * Another OpenAI-compatible Chat Completions API with the same wire format: Cloudflare
+   * Workers AI (`/client/v4/accounts/<id>/ai/v1`), see features/ai/workers-ai.ts.
+   */
+  baseUrl?: string;
+  name?: "groq" | "workers_ai";
   gateway?: { accountId: string; name: string; token?: string | null } | null;
   fetch?: typeof fetch;
   maxRetries?: number;
@@ -33,7 +39,10 @@ export function groqBaseUrl(gateway: GroqConfig["gateway"]): string {
 type WireMessage = Record<string, unknown> & { role: string };
 type WireToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 
-function toWireMessages(req: AiRequest): WireMessage[] {
+/** Workers AI rejects `content: null` on an assistant turn that only calls tools; Groq wants it. */
+type WireOptions = { emptyAssistantContent: null | "" };
+
+function toWireMessages(req: AiRequest, options: WireOptions): WireMessage[] {
   const out: WireMessage[] = [{ role: "system", content: req.system }];
   for (const m of req.messages) {
     if (m.role === "user") {
@@ -70,7 +79,7 @@ function toWireMessages(req: AiRequest): WireMessage[] {
     if (!text.trim() && calls.length === 0) continue;
     out.push({
       role: "assistant",
-      content: text.trim() ? text : null,
+      content: text.trim() ? text : options.emptyAssistantContent,
       ...(calls.length ? { tool_calls: calls } : {}),
     });
   }
@@ -116,10 +125,14 @@ export function withoutNulls(value: unknown): unknown {
   return value;
 }
 
-export function groqRequestBody(req: AiRequest, stream: boolean): Record<string, unknown> {
+export function groqRequestBody(
+  req: AiRequest,
+  stream: boolean,
+  options: WireOptions = { emptyAssistantContent: null },
+): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: req.model,
-    messages: toWireMessages(req),
+    messages: toWireMessages(req, options),
     max_completion_tokens: req.maxTokens,
   };
   if (req.tools?.length)
@@ -180,10 +193,11 @@ function blocksOf(text: string, calls: WireToolCall[]): AiContentBlock[] {
 }
 
 export class GroqProvider implements AiProvider {
-  readonly name = "groq" as const;
+  readonly name: "groq" | "workers_ai";
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly config: GroqConfig) {
+    this.name = config.name ?? "groq";
     this.fetchImpl = config.fetch ?? ((...args) => fetch(...args));
   }
 
@@ -196,9 +210,13 @@ export class GroqProvider implements AiProvider {
       headers["cf-aig-authorization"] = `Bearer ${this.config.gateway.token}`;
     return postWithRetries({
       fetch: this.fetchImpl,
-      url: `${groqBaseUrl(this.config.gateway)}/chat/completions`,
+      url: `${this.config.baseUrl ?? groqBaseUrl(this.config.gateway)}/chat/completions`,
       headers,
-      body: JSON.stringify(groqRequestBody(req, stream)),
+      body: JSON.stringify(
+        groqRequestBody(req, stream, {
+          emptyAssistantContent: this.name === "workers_ai" ? "" : null,
+        }),
+      ),
       signal: req.signal,
       maxRetries: this.config.maxRetries,
       timeoutMs: this.config.timeoutMs,

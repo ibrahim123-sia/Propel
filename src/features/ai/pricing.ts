@@ -88,6 +88,15 @@ export const modelPrices: Record<string, ModelPrice> = {
   "gemini-2.5-flash": { input: 0.3, output: 2.5, cacheRead: 0.03, cacheWrite: 0 },
   "gemini-2.5-flash-lite": { input: 0.1, output: 0.4, cacheRead: 0.01, cacheWrite: 0 },
   "@cf/baai/bge-m3": { input: 0.012, output: 0, cacheRead: 0, cacheWrite: 0 },
+  // Workers AI chat (list prices 2026-11-23; matches the Neurons the API reports).
+  "@cf/openai/gpt-oss-120b": { input: 0.35, output: 0.75, cacheRead: 0.35, cacheWrite: 0 },
+  "@cf/openai/gpt-oss-20b": { input: 0.2, output: 0.3, cacheRead: 0.2, cacheWrite: 0 },
+  "@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
+    input: 0.29,
+    output: 2.25,
+    cacheRead: 0.29,
+    cacheWrite: 0,
+  },
 };
 
 const FREE: ModelPrice = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };

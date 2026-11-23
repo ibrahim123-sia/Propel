@@ -66,3 +66,31 @@ export class FallbackProvider implements AiProvider {
     yield* this.backup.stream(this.backupRequest(req));
   }
 }
+
+/**
+ * The backup provider on its own, with the primary's model names mapped to its own: used when
+ * the primary is skipped on purpose (Workers AI past its free daily allowance, or not set up).
+ */
+export class MappedModelsProvider implements AiProvider {
+  get name() {
+    return this.inner.name;
+  }
+
+  constructor(
+    private readonly inner: AiProvider,
+    private readonly models: Record<string, string>,
+    private readonly defaultModel: string,
+  ) {}
+
+  private request(req: AiRequest): AiRequest {
+    return { ...req, model: this.models[req.model] ?? this.defaultModel };
+  }
+
+  complete(req: AiRequest): Promise<AiResponse> {
+    return this.inner.complete(this.request(req));
+  }
+
+  stream(req: AiRequest): AsyncIterable<AiStreamEvent> {
+    return this.inner.stream(this.request(req));
+  }
+}

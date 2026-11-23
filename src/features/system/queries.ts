@@ -8,6 +8,7 @@ import { loadSettings } from "@/features/settings/queries";
 import { listSecretStatus, type SecretStatus } from "@/features/settings/secrets";
 import type { SecretKey } from "@/features/settings/schema";
 import { cronTasks } from "@/jobs/cron";
+import type { AiProviderName } from "@/features/ai/types";
 import { smtpFromEnv } from "@/lib/email/config";
 import { env } from "@/lib/env";
 import type { TableParams } from "@/lib/table-params";
@@ -203,10 +204,11 @@ export async function integrationStatus(db?: DbOrTx): Promise<IntegrationState[]
   ];
 }
 
-function envAiKey(provider: "xai" | "groq" | "gemini" | "anthropic"): boolean {
+function envAiKey(provider: AiProviderName): boolean {
   const e = env();
   return Boolean(
     {
+      workers_ai: e.CLOUDFLARE_AI_TOKEN,
       xai: e.XAI_API_KEY,
       groq: e.GROQ_API_KEY,
       gemini: e.GEMINI_API_KEY,

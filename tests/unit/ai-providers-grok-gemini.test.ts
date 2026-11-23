@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FallbackProvider } from "@/features/ai/providers/fallback";
+import { FallbackProvider, MappedModelsProvider } from "@/features/ai/providers/fallback";
 import { GeminiProvider, geminiBaseUrl, geminiRequestBody } from "@/features/ai/providers/gemini";
 import {
   GroqProvider,
@@ -552,6 +552,69 @@ describe("Groq provider (OpenAI-compatible Chat Completions)", () => {
       { type: "tool_use", id: "c1", name: "search_listings", input: { beds: 2 } },
     ]);
     expect(done.response.usage.outputTokens).toBe(4);
+  });
+});
+
+describe("Workers AI (the Groq client with Cloudflare's base URL)", () => {
+  const onlyCalls: AiMessage[] = [
+    { role: "user", content: [{ type: "text", text: "Two beds in the Marina?" }] },
+    {
+      role: "assistant",
+      content: [{ type: "tool_use", id: "call_1", name: "search_listings", input: { beds: 2 } }],
+    },
+    { role: "user", content: [{ type: "tool_result", toolUseId: "call_1", content: "3 homes" }] },
+  ];
+
+  it("posts to the account's endpoint and never sends a null assistant content", async () => {
+    const { fn, calls } = fakeFetch([
+      () =>
+        Response.json({
+          model: "@cf/openai/gpt-oss-120b",
+          choices: [{ message: { content: "Here are three." }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 159, completion_tokens: 110 },
+        }),
+    ]);
+    const base = "https://api.cloudflare.com/client/v4/accounts/acc/ai/v1";
+    const p = new GroqProvider({ apiKey: "cf_test", fetch: fn, baseUrl: base, name: "workers_ai" });
+    expect(p.name).toBe("workers_ai");
+    const res = await p.complete(
+      request({ model: "@cf/openai/gpt-oss-120b", messages: onlyCalls }),
+    );
+    expect(res.content).toEqual([{ type: "text", text: "Here are three." }]);
+    expect(calls[0]!.url).toBe(`${base}/chat/completions`);
+    const sent = JSON.parse(String(calls[0]!.init.body)) as {
+      messages: Array<{ content: unknown }>;
+    };
+    // Workers AI rejects `content: null`; Groq keeps it.
+    expect(sent.messages[2]!.content).toBe("");
+    const groq = groqRequestBody(request({ messages: onlyCalls }), false) as {
+      messages: Array<{ content: unknown }>;
+    };
+    expect(groq.messages[2]!.content).toBeNull();
+    // The estimate matches the Neurons Cloudflare reports (12.56 for these tokens): $0.000138.
+    expect(priceFor("@cf/openai/gpt-oss-120b")).toMatchObject({ input: 0.35, output: 0.75 });
+  });
+
+  it("the backup answers alone with its own model names when Workers AI is skipped", async () => {
+    resetMock();
+    const backup = new MockProvider();
+    const seen: string[] = [];
+    const spy = {
+      name: backup.name,
+      complete: (req: AiRequest) => {
+        seen.push(req.model);
+        return backup.complete(req);
+      },
+      stream: (req: AiRequest) => backup.stream(req),
+    };
+    const p = new MappedModelsProvider(
+      spy,
+      { "@cf/openai/gpt-oss-120b": "openai/gpt-oss-120b" },
+      "openai/gpt-oss-120b",
+    );
+    await p.complete(request({ model: "@cf/openai/gpt-oss-120b" }));
+    await p.complete(request({ model: "@cf/openai/gpt-oss-20b" }));
+    expect(seen).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b"]);
   });
 });
 

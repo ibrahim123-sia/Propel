@@ -32,6 +32,7 @@ const provider: AiProviderName | "mock" = (aiProviderNames as readonly string[])
   ? (asked as AiProviderName)
   : "mock";
 const envKeys: Record<AiProviderName, string | undefined> = {
+  workers_ai: process.env.CLOUDFLARE_AI_TOKEN,
   xai: process.env.XAI_API_KEY,
   groq: process.env.GROQ_API_KEY,
   gemini: process.env.GEMINI_API_KEY,

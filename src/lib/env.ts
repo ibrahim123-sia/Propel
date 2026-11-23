@@ -52,6 +52,9 @@ const serverEnvSchema = z.object({
   XAI_API_KEY: z.string().trim().optional(),
   GROQ_API_KEY: z.string().trim().optional(),
   GEMINI_API_KEY: z.string().trim().optional(),
+  /** Workers AI as a chat provider (features/ai/workers-ai.ts): token with "Workers AI: Read". */
+  CLOUDFLARE_ACCOUNT_ID: z.string().trim().optional(),
+  CLOUDFLARE_AI_TOKEN: z.string().trim().optional(),
   ANTHROPIC_API_KEY: z.string().trim().optional(),
 
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().default("1x00000000000000000000AA"),
