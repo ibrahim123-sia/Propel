@@ -1,0 +1,16 @@
+diff --git a/dist/cli/build/bundle-server.js b/dist/cli/build/bundle-server.js
+index 7420316008e9651c5a1e41d2edcc3d00b8d023f8..0154a48ff11c184c19fecfd1677945b835483559 100644
+--- a/dist/cli/build/bundle-server.js
++++ b/dist/cli/build/bundle-server.js
+@@ -84,6 +84,11 @@ export async function bundleServer(buildOpts, projectOpts) {
+         minifyWhitespace: projectOpts.minify && !debug,
+         minifyIdentifiers: false,
+         minifySyntax: projectOpts.minify && !debug,
++        // Propel: keep function names when esbuild renames clashing identifiers. React resumes a
++        // prerendered (PPR) page by matching component names with the ones recorded at build
++        // time; a renamed component (`io` -> `io4`) makes every dynamic hole fall back to client
++        // rendering (React error #419).
++        keepNames: true,
+         legalComments: "none",
+         metafile: true,
+         // Next traces files using the default conditions from `nft` (`node`, `require`, `import` and `default`)

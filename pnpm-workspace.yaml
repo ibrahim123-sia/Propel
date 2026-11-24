@@ -23,4 +23,5 @@ auditConfig:
     # The fix (2.4.0, 2026-10-22) is too new to adopt yet; override it after 2026-11-05.
     - GHSA-27r3-jxmh-p828
 patchedDependencies:
+  '@opennextjs/cloudflare@1.20.16': patches/@opennextjs__cloudflare@1.20.16.patch
   next@16.4.6: patches/next@16.4.6.patch
