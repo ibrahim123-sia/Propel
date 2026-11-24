@@ -2,7 +2,7 @@
 
 import { MessageCircleIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { chat as t } from "@/lib/i18n/dictionaries/chat";
 import {
   HIDE_CHAT_EVENT,
@@ -27,6 +27,8 @@ export function ChatLauncher(props: {
 }) {
   const [open, setOpen] = useState<{ prompt: string } | null>(null);
   const [hidden, setHidden] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
 
   useEffect(() => {
     const onOpen = (e: Event) =>
@@ -39,6 +41,12 @@ export function ChatLauncher(props: {
       window.removeEventListener(HIDE_CHAT_EVENT, onHide);
     };
   }, []);
+
+  // Closing the chat puts the keyboard focus back on the button that opened it.
+  useEffect(() => {
+    if (open) wasOpen.current = true;
+    else if (wasOpen.current) button.current?.focus();
+  }, [open]);
 
   if (open)
     return (
@@ -53,12 +61,19 @@ export function ChatLauncher(props: {
   if (hidden) return null;
   return (
     <button
+      ref={button}
       type="button"
       onClick={() => setOpen({ prompt: "" })}
       aria-haspopup="dialog"
-      className="fixed end-4 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-30 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-3 text-[14px] font-semibold text-surface shadow-pin hover:bg-ink-soft lg:bottom-6 print:hidden"
+      className="group fixed end-4 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-30 inline-flex h-12 items-center gap-2.5 rounded-full bg-ink ps-1.5 pe-5 text-[14px] font-semibold text-surface shadow-[0_10px_30px_-8px_rgba(20,35,43,0.45)] transition-[transform,background-color] duration-150 hover:-translate-y-0.5 hover:bg-ink-soft motion-reduce:transition-none lg:end-6 lg:bottom-6 print:hidden"
     >
-      <MessageCircleIcon className="size-4" aria-hidden />
+      <span className="relative grid size-9 place-items-center rounded-full bg-surface/12">
+        <MessageCircleIcon className="size-[18px]" aria-hidden />
+        <span
+          aria-hidden
+          className="absolute end-0.5 top-0.5 size-2.5 rounded-full bg-success ring-2 ring-ink"
+        />
+      </span>
       {t.open}
     </button>
   );
