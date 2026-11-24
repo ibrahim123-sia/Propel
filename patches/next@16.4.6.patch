@@ -128,6 +128,42 @@ index c3d660a27f186bb0705faba68fd5b8c9960815c8..eca6cad729cff56bd735e443b744fa4d
  Reason: ${i}`:`Error serializing props returned from \`${t}\` in "${e}".
  Reason: ${i}`)}}function tJ(e,t,r){if(!tW(r))throw new tX(e,t,"",`Props must be returned as a plain object from ${t}: \`{ props: { ... } }\` (received: \`${tB(r)}\`).`);function i(r,i,a){if(r.has(i))throw new tX(e,t,a,`Circular references cannot be expressed in JSON (references: \`${r.get(i)||"(self)"}\`).`);r.set(i,a)}return function r(a,n,s){let o=typeof n;if(null===n||"boolean"===o||"number"===o||"string"===o)return!0;if("undefined"===o)throw new tX(e,t,s,"`undefined` cannot be serialized as JSON. Please use `null` or omit this value.");if(tW(n)){if(i(a,n,s),Object.entries(n).every(([e,t])=>{let i=tV.test(e)?`${s}.${e}`:`${s}[${JSON.stringify(e)}]`,n=new Map(a);return r(n,e,i)&&r(n,t,i)}))return!0;throw new tX(e,t,s,"invariant: Unknown error encountered in Object.")}if(Array.isArray(n)){if(i(a,n,s),n.every((e,t)=>r(new Map(a),e,`${s}[${t}]`)))return!0;throw new tX(e,t,s,"invariant: Unknown error encountered in Array.")}throw new tX(e,t,s,"`"+o+"`"+("object"===o?` ("${Object.prototype.toString.call(n)}")`:"")+" cannot be serialized as JSON. Please only return JSON serializable data types.")}(new Map,r,"")}let tK=tH().createContext({}),tZ=tH().createContext(null),tY=[],tQ=[];function t0(e){let t=e(),r={loading:!0,loaded:null,error:null};return r.promise=t.then(e=>(r.loading=!1,r.loaded=e,e)).catch(e=>{throw r.loading=!1,r.error=e,e}),r}class t1{constructor(e,t){this._loadFn=e,this._opts=t,this._callbacks=new Set,this._delay=null,this._timeout=null,this.retry()}promise(){return this._res.promise}retry(){this._clearTimeouts(),this._res=this._loadFn(this._opts.loader),this._state={pastDelay:!1,timedOut:!1};let{_res:e,_opts:t}=this;e.loading&&("number"==typeof t.delay&&(0===t.delay?this._state.pastDelay=!0:this._delay=setTimeout(()=>{this._update({pastDelay:!0})},t.delay)),"number"==typeof t.timeout&&(this._timeout=setTimeout(()=>{this._update({timedOut:!0})},t.timeout)));this._res.promise.then(()=>{this._update({}),this._clearTimeouts()}).catch(e=>{this._update({}),this._clearTimeouts()}),this._update({})}_update(e){this._state={...this._state,error:this._res.error,loaded:this._res.loaded,loading:this._res.loading,...e},this._callbacks.forEach(e=>e())}_clearTimeouts(){clearTimeout(this._delay),clearTimeout(this._timeout)}getCurrentValue(){return this._state}subscribe(e){return this._callbacks.add(e),()=>{this._callbacks.delete(e)}}}function t2(e){let t=Object.assign({loader:null,loading:null,delay:200,timeout:null,webpack:null,modules:null},e),r=null;function i(){if(!r){let e=new t1(t0,t);r={getCurrentValue:e.getCurrentValue.bind(e),subscribe:e.subscribe.bind(e),retry:e.retry.bind(e),promise:e.promise.bind(e)}}return r.promise()}function a(e,a){let n;i(),(n=tH().useContext(tZ))&&Array.isArray(t.modules)&&t.modules.forEach(e=>{n(e)});let s=tH().useSyncExternalStore(r.subscribe,r.getCurrentValue,r.getCurrentValue);return tH().useImperativeHandle(a,()=>({retry:r.retry}),[]),tH().useMemo(()=>{var i;return s.loading||s.error?tH().createElement(t.loading,{isLoading:s.loading,pastDelay:s.pastDelay,timedOut:s.timedOut,error:s.error,retry:r.retry}):s.loaded?tH().createElement((i=s.loaded)&&i.default?i.default:i,e):null},[e,s])}return tY.push(i),a.preload=()=>i(),a.displayName="LoadableComponent",tH().forwardRef(a)}function t3(e,t){let r=[];for(;e.length;){let i=e.pop();r.push(i(t))}return Promise.all(r).then(()=>{if(e.length)return t3(e,t)})}t2.preloadAll=()=>new Promise((e,t)=>{t3(tY).then(e,t)}),t2.preloadReady=(e=[])=>new Promise(t=>{let r=()=>t();t3(tQ,e).then(r,r)});let t4=t2,t8=tH().createContext(null),t9=(0,tU.createContext)(void 0);function t6(){let e=(0,tU.useContext)(t9);if(!e)throw Error(`<Html> should not be imported outside of pages/_document.
  Read more: https://nextjs.org/docs/messages/no-document-import-in-page`);return e}var t7=((l={})[l.SeeOther=303]="SeeOther",l[l.TemporaryRedirect=307]="TemporaryRedirect",l[l.PermanentRedirect=308]="PermanentRedirect",l);let t5=new Set([301,302,303,307,308]);function re(e){return e.statusCode||(e.permanent?t7.PermanentRedirect:t7.TemporaryRedirect)}new WeakMap;let rt=tH().createContext({deviceSizes:[640,750,828,1080,1200,1920,2048,3840],imageSizes:[32,48,64,96,128,256,384],path:"/_next/image",loader:"default",loaderFile:"",domains:[],disableStaticImages:!1,minimumCacheTTL:14400,formats:["image/webp"],maximumDiskCacheSize:void 0,maximumRedirects:3,maximumResponseBody:5e7,dangerouslyAllowLocalIP:!1,dangerouslyAllowSVG:!1,contentSecurityPolicy:"script-src 'none'; frame-src 'none'; sandbox;",contentDispositionType:"attachment",localPatterns:void 0,remotePatterns:[],qualities:[75],unoptimized:!1,customCacheHandler:!1});var rr=a("./dist/compiled/strip-ansi/index.js"),ri=a.n(rr);let ra=["_rsc"];class rn extends Error{constructor(){super("Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams")}}class rs extends URLSearchParams{append(){throw new rn}delete(){throw new rn}set(){throw new rn}sort(){throw new rn}}let ro=(0,tU.createContext)(null),rl=(0,tU.createContext)(null),rd=(0,tU.createContext)(null),rc=(0,tU.createContext)(null);function ru(e,t){let r=Promise.resolve(t);return r.status="fulfilled",r.value=t,r.displayName=`${e} (SSR)`,r}function rh({children:e,router:t,...r}){let i=(0,tU.useRef)(r.isAutoExport),a=(0,tU.useMemo)(()=>{let e,r=i.current;if(r&&(i.current=!1),$(t.pathname)){if(t.isFallback)return null;if(r&&!t.isReady)return null}try{e=new URL(t.asPath,"http://f")}catch(e){return"/"}return e.pathname},[t.asPath,t.isFallback,t.isReady,t.pathname]);return(0,tL.jsx)(rl.Provider,{value:a,children:e})}let rp=tH().createContext(null),rf=tH().createContext(null),rm=tH().createContext(null),rg=tH().createContext(null),rv=tH().createContext(new Set),ry=Symbol.for("NextjsError"),rx=/^'nonce-([A-Za-z0-9+/_-]+={0,2})'$/,rb="<!DOCTYPE html>";function rP(){throw Error('No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance')}async function rw(e){let t=await tq().renderToReadableStream(e);return await t.allReady,e0(t)}e=a("./dist/esm/server/api-utils/node/try-get-preview-data.js").tryGetPreviewData,t=a("./dist/esm/build/output/log.js").R8,r=a("./dist/esm/server/post-process.js").F;class rS{constructor(e,t,r,{isFallback:i},a,n,s,o,l,d,c,u){this.route=e.replace(/\/$/,"")||"/",this.pathname=e,this.query=t,this.asPath=r,this.isFallback=i,this.basePath=n,this.locale=s,this.locales=o,this.defaultLocale=l,this.isReady=a,this.domainLocales=d,this.isPreview=!!c,this.isLocaleDomain=!!u}push(){rP()}replace(){rP()}reload(){rP()}back(){rP()}forward(){rP()}prefetch(){rP()}beforePopState(){rP()}}function rE(e,t,r){return(0,tL.jsx)(e,{Component:t,...r})}let rC=(e,t)=>{let r=`invalid-${e.toLocaleLowerCase()}-value`;return`Additional keys were returned from \`${e}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
+diff --git a/dist/esm/server/app-render/module-loading/track-module-loading.instance.js b/dist/esm/server/app-render/module-loading/track-module-loading.instance.js
+index c693c6587fc922b31eab1c6323d3f79242a6f5a7..f9b3a321ace91d4ba9a0a11585f2d870610d369b 100644
+--- a/dist/esm/server/app-render/module-loading/track-module-loading.instance.js
++++ b/dist/esm/server/app-render/module-loading/track-module-loading.instance.js
+@@ -1,4 +1,10 @@
+ import { CacheSignal } from '../cache-signal';
++// Propel patch (Cloudflare Workers): this signal is shared by every request in the isolate.
++// On Workers a promise settles only in the request that made it, so an import tracked by a
++// request that was cancelled never ended, the count stayed above zero, and every later
++// render that subscribed waited forever ("Worker's code had hung", Error 1101). Modules are
++// bundled on Workers (imports finish at once), so nothing is tracked there.
++const propelOnWorkers = ()=>typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+ /**
+  * Tracks all in-flight async imports and chunk loads.
+  * Initialized lazily, because we don't want this to error in case it gets pulled into an edge runtime module.
+@@ -10,10 +16,12 @@ function getModuleLoadingSignal() {
+     return _moduleLoadingSignal;
+ }
+ export function trackPendingChunkLoad(promise) {
++    if (propelOnWorkers()) return;
+     const moduleLoadingSignal = getModuleLoadingSignal();
+     moduleLoadingSignal.trackRead(promise);
+ }
+ export function trackPendingImport(exportsOrPromise) {
++    if (propelOnWorkers()) return;
+     const moduleLoadingSignal = getModuleLoadingSignal();
+     // requiring an async module returns a promise.
+     // if it's sync, there's nothing to track.
+@@ -29,6 +37,7 @@ export function trackPendingImport(exportsOrPromise) {
+  *
+  * So if we see one, we want to extend the duration of `cacheSignal` at least until the import/chunk-load is done.
+  */ export function trackPendingModules(cacheSignal) {
++    if (propelOnWorkers()) return;
+     const moduleLoadingSignal = getModuleLoadingSignal();
+     // We can't just use `cacheSignal.trackRead(moduleLoadingSignal.cacheReady())`,
+     // because we might start and finish multiple batches of module loads while waiting for caches,
 diff --git a/dist/esm/server/response-cache/index.js b/dist/esm/server/response-cache/index.js
 index 8d629a259f07fae2f8068be40ab63ff6dbe184c6..a7276724b4d4df9686e5149dd33c3bc6536841ff 100644
 --- a/dist/esm/server/response-cache/index.js
@@ -168,6 +204,44 @@ index ccb35d81f6550cf3a42263018ad263e52d727a70..388adf14c59d4e4aa011899be211a0bd
          try {
              // The loop handles cross-request root param mismatches: when a
              // cross-request joiner discovers that the leader's root params differ
+diff --git a/dist/server/app-render/module-loading/track-module-loading.instance.js b/dist/server/app-render/module-loading/track-module-loading.instance.js
+index a7150c4d3ad9ea01e573a2c01a718a4daade5e9a..be74f8ed1dbb27e56ba6be31f713ce53afa1fd23 100644
+--- a/dist/server/app-render/module-loading/track-module-loading.instance.js
++++ b/dist/server/app-render/module-loading/track-module-loading.instance.js
+@@ -25,6 +25,12 @@ _export(exports, {
+     }
+ });
+ const _cachesignal = require("../cache-signal");
++// Propel patch (Cloudflare Workers): this signal is shared by every request in the isolate.
++// On Workers a promise settles only in the request that made it, so an import tracked by a
++// request that was cancelled never ended, the count stayed above zero, and every later
++// render that subscribed waited forever ("Worker's code had hung", Error 1101). Modules are
++// bundled on Workers (imports finish at once), so nothing is tracked there.
++const propelOnWorkers = ()=>typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+ /**
+  * Tracks all in-flight async imports and chunk loads.
+  * Initialized lazily, because we don't want this to error in case it gets pulled into an edge runtime module.
+@@ -36,10 +42,12 @@ function getModuleLoadingSignal() {
+     return _moduleLoadingSignal;
+ }
+ function trackPendingChunkLoad(promise) {
++    if (propelOnWorkers()) return;
+     const moduleLoadingSignal = getModuleLoadingSignal();
+     moduleLoadingSignal.trackRead(promise);
+ }
+ function trackPendingImport(exportsOrPromise) {
++    if (propelOnWorkers()) return;
+     const moduleLoadingSignal = getModuleLoadingSignal();
+     // requiring an async module returns a promise.
+     // if it's sync, there's nothing to track.
+@@ -48,6 +56,7 @@ function trackPendingImport(exportsOrPromise) {
+     }
+ }
+ function trackPendingModules(cacheSignal) {
++    if (propelOnWorkers()) return;
+     const moduleLoadingSignal = getModuleLoadingSignal();
+     // We can't just use `cacheSignal.trackRead(moduleLoadingSignal.cacheReady())`,
+     // because we might start and finish multiple batches of module loads while waiting for caches,
 diff --git a/dist/server/response-cache/index.js b/dist/server/response-cache/index.js
 index c8008b7fbb187cb0c1d56a9637362944497ea9f6..6c39240cbf4a5cbc70266479b276cdf728647391 100644
 --- a/dist/server/response-cache/index.js
