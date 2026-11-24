@@ -37,6 +37,7 @@ import { slugify } from "@/lib/slug";
 import { getStorage } from "@/lib/storage";
 import { areaToSqm, perAreaToSqm, type AreaUnit } from "@/lib/units";
 import {
+  appIcon,
   bedroom,
   floorPlan,
   kitchen,
@@ -270,10 +271,21 @@ export async function seedPreset(
     alt: `${preset.agencyName} logo`,
     folder: "brand",
   });
+  const agencyIcon = await storePicture(db, await appIcon(preset.agencyName, preset.logoColor), {
+    fileName: `${slugify(preset.agencyName)}-icon`,
+    alt: `${preset.agencyName} icon`,
+    folder: "brand",
+  });
   await patchSettings(
     db,
     "general",
-    { ...preset.settings.general, logoLightId: agencyLogo },
+    {
+      ...preset.settings.general,
+      logoLightId: agencyLogo,
+      // The browser tab and the home-screen icon (02 §3 Branding).
+      faviconId: agencyIcon,
+      appIconId: agencyIcon,
+    },
     system,
   );
   await patchSettings(db, "market", preset.settings.market, system);

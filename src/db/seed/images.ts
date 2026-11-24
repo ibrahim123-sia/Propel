@@ -249,6 +249,19 @@ export async function portrait(initials: string, color: string): Promise<Picture
   return { bytes: new Uint8Array(bytes), mime: "image/jpeg", width: 800, height: 800, color };
 }
 
+/**
+ * The agency's square icon (favicon and home-screen icon): the logo's mark, its first letter
+ * on the brand colour, filling the square so it stays legible at 16 px.
+ */
+export async function appIcon(name: string, color: string, size = 512): Promise<Picture> {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="112" fill="${color}"/>
+    <text x="256" y="360" font-family="Georgia, serif" font-size="340" fill="#ffffff" text-anchor="middle">${name.charAt(0)}</text>
+  </svg>`;
+  const bytes = await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer();
+  return { bytes: new Uint8Array(bytes), mime: "image/png", width: size, height: size, color };
+}
+
 /** Wordmark logo on a transparent background. */
 export async function logo(name: string, color: string): Promise<Picture> {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="240">
