@@ -6,9 +6,10 @@ import { env } from "@/lib/env";
 import { agencyToday } from "./usage";
 
 /**
- * Cloudflare Workers AI as a chat provider, through its OpenAI-compatible Chat Completions
- * API (the same wire format as Groq, see providers/groq.ts). It needs the account id and an
- * API token with the "Workers AI: Read" permission (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AI_TOKEN).
+ * Cloudflare Workers AI as a chat provider, in the OpenAI Chat Completions wire format (the
+ * same as Groq, see providers/groq.ts). On Cloudflare it goes through the Worker's `AI`
+ * binding, which needs no token; elsewhere (scripts, the eval) through the REST API with the
+ * account id and a token with "Workers AI: Read" (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AI_TOKEN).
  *
  * The account gets 10,000 Neurons a day free; beyond that Cloudflare bills them. To keep the
  * bill flat, the assistants move to the backup provider for the rest of the day once the

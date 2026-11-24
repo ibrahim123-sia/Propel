@@ -10,7 +10,7 @@ import type { SecretKey } from "@/features/settings/schema";
 import { cronTasks } from "@/jobs/cron";
 import type { AiProviderName } from "@/features/ai/types";
 import { smtpFromEnv } from "@/lib/email/config";
-import { env } from "@/lib/env";
+import { env, isWorkersRuntime } from "@/lib/env";
 import type { TableParams } from "@/lib/table-params";
 import { readEnv } from "@/lib/legacy-env";
 
@@ -208,7 +208,8 @@ function envAiKey(provider: AiProviderName): boolean {
   const e = env();
   return Boolean(
     {
-      workers_ai: e.CLOUDFLARE_AI_TOKEN,
+      // On Cloudflare the Worker's AI binding needs no token (features/ai/binding.ts).
+      workers_ai: e.CLOUDFLARE_AI_TOKEN || isWorkersRuntime(),
       xai: e.XAI_API_KEY,
       groq: e.GROQ_API_KEY,
       gemini: e.GEMINI_API_KEY,

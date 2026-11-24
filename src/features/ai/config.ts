@@ -11,6 +11,7 @@ import { GeminiProvider } from "./providers/gemini";
 import { GroqProvider } from "./providers/groq";
 import { MockProvider } from "./providers/mock";
 import { XaiProvider } from "./providers/xai";
+import { aiBinding, bindingFetch, WORKERS_AI_BINDING_URL } from "./binding";
 import type { AiProvider, AiProviderName } from "./types";
 import { workersAiAllowanceLeft, workersAiBaseUrl } from "./workers-ai";
 
@@ -131,14 +132,29 @@ export async function aiKey(
 
 type Gateway = { accountId: string; name: string; token: string | null } | null;
 
+/** On Cloudflare, Workers AI runs on the Worker's `AI` binding (no token, no network hop). */
+type WorkersAiFetch = typeof fetch | null;
+
 /** A provider by name (the eval script builds one without settings). */
 export function createProvider(name: AiProviderName, apiKey: string): AiProvider {
-  return makeProvider(name, apiKey, null);
+  return makeProvider(name, apiKey, null, null);
 }
 
-function makeProvider(name: AiProviderName, apiKey: string, gateway: Gateway): AiProvider {
+function makeProvider(
+  name: AiProviderName,
+  apiKey: string,
+  gateway: Gateway,
+  workersAi: WorkersAiFetch,
+): AiProvider {
   switch (name) {
     case "workers_ai": {
+      if (workersAi)
+        return new GroqProvider({
+          apiKey: "",
+          baseUrl: WORKERS_AI_BINDING_URL,
+          name: "workers_ai",
+          fetch: workersAi,
+        });
       const baseUrl = workersAiBaseUrl();
       if (!baseUrl) throw new AiNotConfiguredError("CLOUDFLARE_ACCOUNT_ID is not set.");
       return new GroqProvider({ apiKey, baseUrl, name: "workers_ai" });
@@ -161,15 +177,24 @@ function makeProvider(name: AiProviderName, apiKey: string, gateway: Gateway): A
 export async function providerFor(config: AiConfig, db?: DbOrTx): Promise<AiProvider> {
   if (g.__propelAiProviderOverride) return g.__propelAiProviderOverride;
   if (config.provider === "mock") return new MockProvider();
-  const [apiKey, fallbackKey, gatewayToken] = await Promise.all([
+  const usesWorkersAi =
+    config.provider === "workers_ai" || config.fallback?.provider === "workers_ai";
+  const [savedKey, savedFallbackKey, gatewayToken, binding] = await Promise.all([
     aiKey("ai_api_key", config.provider, db),
     config.fallback ? aiKey("ai_fallback_api_key", config.fallback.provider, db) : null,
     config.gateway ? getSecret("ai_gateway_token", db) : Promise.resolve(null),
+    usesWorkersAi ? aiBinding() : Promise.resolve(null),
   ]);
+  const workersAi = binding ? bindingFetch(binding) : null;
+  // The binding stands in for the Workers AI token.
+  const keyFor = (provider: AiProviderName, key: string | null) =>
+    key || (provider === "workers_ai" && workersAi ? "binding" : null);
+  const apiKey = keyFor(config.provider, savedKey);
+  const fallbackKey = config.fallback ? keyFor(config.fallback.provider, savedFallbackKey) : null;
   const gateway = config.gateway ? { ...config.gateway, token: gatewayToken } : null;
   const backup =
     config.fallback && fallbackKey
-      ? makeProvider(config.fallback.provider, fallbackKey, gateway)
+      ? makeProvider(config.fallback.provider, fallbackKey, gateway, workersAi)
       : null;
   const backupModels = config.fallback
     ? {
@@ -180,14 +205,14 @@ export async function providerFor(config: AiConfig, db?: DbOrTx): Promise<AiProv
   // Workers AI: the backup answers once the free daily allowance is used up (no Neurons are
   // billed), or when the account id or token is missing.
   if (config.provider === "workers_ai" && backup && config.fallback) {
-    const usable = Boolean(apiKey && workersAiBaseUrl());
+    const usable = Boolean(workersAi || (apiKey && workersAiBaseUrl()));
     if (!usable || !(await workersAiAllowanceLeft(db ?? (await getDb()))))
       return new MappedModelsProvider(backup, backupModels, config.fallback.models.chat);
   }
   if (!apiKey) {
     throw new AiNotConfiguredError("The AI provider key is missing.");
   }
-  const primary = makeProvider(config.provider, apiKey, gateway);
+  const primary = makeProvider(config.provider, apiKey, gateway, workersAi);
   if (!backup || !config.fallback) return primary;
   return new FallbackProvider(primary, backup, backupModels, config.fallback.models.chat);
 }

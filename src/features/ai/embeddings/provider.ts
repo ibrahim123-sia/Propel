@@ -1,5 +1,6 @@
 import { EMBEDDING_DIMENSIONS } from "@/db/schema/ai";
 import { isWorkersRuntime } from "@/lib/env";
+import { aiBinding } from "../binding";
 
 /**
  * Embedding providers (10 §1). The spec's stack is Cloudflare, so the real provider is Workers
@@ -93,17 +94,6 @@ type AiBinding = {
   ) => Promise<{ data?: number[][]; shape?: number[] }>;
 };
 
-async function aiBinding(): Promise<AiBinding | null> {
-  if (!isWorkersRuntime()) return null;
-  try {
-    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
-    const { env } = await getCloudflareContext({ async: true });
-    return ((env as { AI?: AiBinding }).AI ?? null) as AiBinding | null;
-  } catch {
-    return null;
-  }
-}
-
 const BATCH = 50;
 
 export function workersAiEmbeddings(model: string, gatewayName: string | null): EmbeddingProvider {
@@ -113,7 +103,7 @@ export function workersAiEmbeddings(model: string, gatewayName: string | null): 
     dimensions: EMBEDDING_DIMENSIONS,
     thresholds: { high: 0.62, low: 0.45 },
     async embed(texts) {
-      const binding = await aiBinding();
+      const binding = await aiBinding<AiBinding>();
       if (!binding)
         throw new Error("Workers AI is only available on Cloudflare (the AI binding is missing).");
       const vectors: number[][] = [];
