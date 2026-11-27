@@ -39,8 +39,57 @@ function internalRequest(path: string, env: Env, body: unknown): Request {
   });
 }
 
+/**
+ * TEMPORARY hang probe (2026-11-27): records where each `waitUntil` promise of a request was
+ * registered and, 8 s after the response, logs the ones still pending. Workers reports those
+ * requests only as "code had hung", with no hint of which promise never settled.
+ */
+const PROBE_AFTER_MS = 8_000;
+
+async function probedFetch(req: Request, env: Env, ctx: Ctx): Promise<Response> {
+  const pending = new Map<number, string>();
+  let next = 0;
+  const waitUntil = (p: Promise<unknown>) => {
+    const id = ++next;
+    const limit = Error.stackTraceLimit;
+    Error.stackTraceLimit = 40;
+    pending.set(id, new Error("waitUntil").stack ?? "");
+    Error.stackTraceLimit = limit;
+    p.then(
+      () => pending.delete(id),
+      () => pending.delete(id),
+    );
+    ctx.waitUntil(p);
+  };
+  const probeCtx = new Proxy(ctx, {
+    get(target, key) {
+      if (key === "waitUntil") return waitUntil;
+      const value = Reflect.get(target, key) as unknown;
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  const path = `${req.method} ${new URL(req.url).pathname}`;
+  const report = (when: string) => {
+    if (pending.size)
+      console.error(
+        `[hang-probe] ${path} ${when}: ${pending.size} pending\n${[...pending.values()].join("\n---\n")}`,
+      );
+  };
+  const slow = setTimeout(() => report("no response after 10 s"), 10_000);
+  try {
+    return await app.fetch(req, env, probeCtx);
+  } finally {
+    clearTimeout(slow);
+    ctx.waitUntil(
+      new Promise((r) => setTimeout(r, PROBE_AFTER_MS)).then(() =>
+        report("8 s after the response"),
+      ),
+    );
+  }
+}
+
 const worker = {
-  fetch: app.fetch,
+  fetch: probedFetch,
 
   /** One cron (`* * * * *`); the app decides what is due in the agency time zone. */
   async scheduled(event: Scheduled, env: Env, ctx: Ctx) {
