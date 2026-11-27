@@ -161,6 +161,9 @@ describe("viewings (09 §5)", () => {
     const { db, agent, listing } = await world();
     const start = (await availableSlots(db, agent, now)).slots.at(-1)!.start;
     await bookViewing(db, { ...visitor, propertyId: listing, start });
+    // Booked at the test's "now", not the real clock (a later real date made it look booked
+    // inside the reminder window).
+    await db.update(viewings).set({ createdAt: now });
     await db.delete(jobRuns);
     const hoursBefore = (h: number) => new Date(start.getTime() - h * 3_600_000);
     expect(await queueViewingReminders(db, hoursBefore(25))).toBe(0);
