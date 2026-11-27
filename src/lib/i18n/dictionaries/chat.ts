@@ -1,6 +1,6 @@
 /** Website chat wording (09 §1 #3). */
 export const chat = {
-  open: "Chat with us",
+  open: "AI Assistant",
   close: "Close the chat",
   intro: "Leave your details and your question; the team replies here and by email or phone.",
   name: "Name",

@@ -19,7 +19,7 @@ test("website chat reaches the inbox; the team replies, hands back and takes ove
   const visitorContext = await browser.newContext({ storageState: decidedCookies });
   const visitor = await visitorContext.newPage();
   await visitor.goto("/");
-  await visitor.getByRole("button", { name: "Chat with us" }).click();
+  await visitor.getByRole("button", { name: "AI Assistant" }).click();
   const chat = visitor.getByRole("dialog", { name: "Assistant" });
   await chat.getByRole("textbox", { name: "Name" }).fill(name);
   await chat.getByRole("textbox", { name: "Email" }).fill(email);

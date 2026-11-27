@@ -43,7 +43,7 @@ test("the assistant answers with listing cards, then hands over to a person", as
   const context = await browser.newContext({ storageState: decidedCookies });
   const page = await context.newPage();
   await page.goto("/");
-  await page.getByRole("button", { name: "Chat with us" }).click();
+  await page.getByRole("button", { name: "AI Assistant" }).click();
   const chat = page.getByRole("dialog", { name: "Assistant" });
   await chat
     .getByRole("textbox", { name: "Your message" })
