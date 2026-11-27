@@ -50,7 +50,7 @@ const PROBE_AFTER_MS = 8_000;
  * 'use cache' calls still open, by call: the cache key and how far it got. Data only (strings
  * and times), never a promise, so it cannot carry a hang from one request to another.
  */
-type CacheCall = { op: "get" | "entry" | "write" | "stale"; key: string; since: number };
+type CacheCall = { op: "get" | "entry" | "write" | "stale" | "miss"; key: string; since: number };
 const openCacheCalls = new Map<number, CacheCall>();
 let cacheCallId = 0;
 /** Keys read stale (a background revalidation should follow) and their open call id. */
@@ -121,14 +121,21 @@ function probeCacheHandlers() {
       void result.then(
         (entry) => {
           const e = entry as { timestamp?: number; revalidate?: number } | undefined;
-          if (
-            e?.timestamp &&
+          // A miss (no entry) or a stale entry is filled, then written with set(); the set
+          // only comes once the entry's whole stream is collected.
+          const miss = !e;
+          const stale =
+            !!e?.timestamp &&
             e.revalidate !== undefined &&
-            Date.now() > e.timestamp + e.revalidate * 1000
-          ) {
+            Date.now() > e.timestamp + e.revalidate * 1000;
+          if (miss || stale) {
             const id = ++cacheCallId;
             staleKeys.set(key, id);
-            openCacheCalls.set(id, { op: "stale", key: key.slice(0, 300), since: Date.now() });
+            openCacheCalls.set(id, {
+              op: miss ? "miss" : "stale",
+              key: key.slice(0, 300),
+              since: Date.now(),
+            });
           }
         },
         () => undefined,
