@@ -46,7 +46,54 @@ function internalRequest(path: string, env: Env, body: unknown): Request {
  */
 const PROBE_AFTER_MS = 8_000;
 
+/**
+ * 'use cache' calls still open, by call: the cache key and how far it got. Data only (strings
+ * and times), never a promise, so it cannot carry a hang from one request to another.
+ */
+type CacheCall = { op: "get" | "entry" | "write"; key: string; since: number };
+const openCacheCalls = new Map<number, CacheCall>();
+let cacheCallId = 0;
+type CacheHandler = {
+  get(key: string, softTags: string[]): Promise<unknown>;
+  set(key: string, pending: Promise<unknown>): Promise<void>;
+  __propelProbe?: true;
+};
+
+function track<T>(op: CacheCall["op"], key: string, p: Promise<T>): Promise<T> {
+  const id = ++cacheCallId;
+  openCacheCalls.set(id, { op, key: key.slice(0, 300), since: Date.now() });
+  const done = () => openCacheCalls.delete(id);
+  p.then(done, done);
+  return p;
+}
+
+/** Wraps Next's 'use cache' handlers (registered on globalThis by Next) once they exist. */
+function probeCacheHandlers() {
+  const map = (globalThis as Record<symbol, unknown>)[Symbol.for("@next/cache-handlers-map")] as
+    Map<string, CacheHandler> | undefined;
+  for (const handler of map?.values() ?? []) {
+    if (handler.__propelProbe) continue;
+    handler.__propelProbe = true;
+    const get = handler.get.bind(handler);
+    const set = handler.set.bind(handler);
+    handler.get = (key, softTags) => track("get", key, get(key, softTags));
+    handler.set = (key, pending) => {
+      track("entry", key, pending);
+      return track("write", key, set(key, pending));
+    };
+  }
+}
+
+function stuckCacheCalls(): string {
+  const now = Date.now();
+  return [...openCacheCalls.values()]
+    .filter((c) => now - c.since > PROBE_AFTER_MS)
+    .map((c) => `${c.op} ${Math.round((now - c.since) / 1000)}s ${c.key}`)
+    .join("\n");
+}
+
 async function probedFetch(req: Request, env: Env, ctx: Ctx): Promise<Response> {
+  probeCacheHandlers();
   const pending = new Map<number, string>();
   let next = 0;
   const waitUntil = (p: Promise<unknown>) => {
@@ -70,9 +117,11 @@ async function probedFetch(req: Request, env: Env, ctx: Ctx): Promise<Response> 
   });
   const path = `${req.method} ${new URL(req.url).pathname}`;
   const report = (when: string) => {
-    if (pending.size)
+    probeCacheHandlers();
+    const stuck = stuckCacheCalls();
+    if (pending.size || stuck)
       console.error(
-        `[hang-probe] ${path} ${when}: ${pending.size} pending\n${[...pending.values()].join("\n---\n")}`,
+        `[hang-probe] ${path} ${when}: ${pending.size} pending\n${[...pending.values()].join("\n---\n")}\n[use cache open > 8 s]\n${stuck}`,
       );
   };
   const slow = setTimeout(() => report("no response after 10 s"), 10_000);
