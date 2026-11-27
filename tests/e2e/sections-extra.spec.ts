@@ -64,16 +64,16 @@ test("tools cards, the teaser's question chips open the chat, and a page without
   await chips.getByRole("button", { name: "What does a villa cost?" }).click();
   const chat = page.getByRole("dialog");
   await expect(chat.getByLabel("Your message")).toHaveValue("What does a villa cost?");
-  await expect(page.getByRole("button", { name: /^Chat/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "AI Assistant" })).toHaveCount(0);
 
   // The page that hides the chat: no button, and it comes back on the next page.
   await page.goto("/e2e-no-chat");
   await expect(page.getByRole("region", { name: "Plan your move" })).toBeVisible();
   await expect(
-    page.locator("button[aria-haspopup='dialog']").filter({ hasText: /chat/i }),
+    page.locator("button[aria-haspopup='dialog']").filter({ hasText: /assistant/i }),
   ).toHaveCount(0);
   await page.goto("/e2e-tools-teaser");
   await expect(
-    page.locator("button[aria-haspopup='dialog']").filter({ hasText: /chat/i }),
+    page.locator("button[aria-haspopup='dialog']").filter({ hasText: /assistant/i }),
   ).toHaveCount(1);
 });
