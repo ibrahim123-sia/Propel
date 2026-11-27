@@ -70,7 +70,43 @@ function track<T>(op: CacheCall["op"], key: string, p: Promise<T>): Promise<T> {
 }
 
 /** Wraps Next's 'use cache' handlers (registered on globalThis by Next) once they exist. */
+/** OpenNext's own cache layers (R2 page cache, tag cache, revalidation queue). */
+function probeOpenNextGlobals() {
+  const g = globalThis as Record<string, unknown>;
+  for (const name of ["incrementalCache", "tagCache", "queue", "cdnInvalidationHandler"]) {
+    const target = g[name] as (Record<string, unknown> & { __propelProbe?: true }) | undefined;
+    if (!target || target.__propelProbe) continue;
+    target.__propelProbe = true;
+    const known = [
+      "get",
+      "set",
+      "delete",
+      "getByPath",
+      "getByTag",
+      "getLastModified",
+      "getLastRevalidated",
+      "getPathsByTags",
+      "hasBeenRevalidated",
+      "isStale",
+      "writeTags",
+      "send",
+      "invalidatePaths",
+    ];
+    for (const method of new Set([...Object.keys(target), ...known])) {
+      const fn = target[method];
+      if (typeof fn !== "function") continue;
+      target[method] = (...args: unknown[]) => {
+        const out = (fn as (...a: unknown[]) => unknown).apply(target, args);
+        if (out instanceof Promise)
+          void track("get", `${name}.${method} ${String(args[0]).slice(0, 200)}`, out);
+        return out;
+      };
+    }
+  }
+}
+
 function probeCacheHandlers() {
+  probeOpenNextGlobals();
   const map = (globalThis as Record<symbol, unknown>)[Symbol.for("@next/cache-handlers-map")] as
     Map<string, CacheHandler> | undefined;
   for (const handler of map?.values() ?? []) {
