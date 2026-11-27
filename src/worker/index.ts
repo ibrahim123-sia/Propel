@@ -50,9 +50,11 @@ const PROBE_AFTER_MS = 8_000;
  * 'use cache' calls still open, by call: the cache key and how far it got. Data only (strings
  * and times), never a promise, so it cannot carry a hang from one request to another.
  */
-type CacheCall = { op: "get" | "entry" | "write"; key: string; since: number };
+type CacheCall = { op: "get" | "entry" | "write" | "stale"; key: string; since: number };
 const openCacheCalls = new Map<number, CacheCall>();
 let cacheCallId = 0;
+/** Keys read stale (a background revalidation should follow) and their open call id. */
+const staleKeys = new Map<string, number>();
 type CacheHandler = {
   get(key: string, softTags: string[]): Promise<unknown>;
   set(key: string, pending: Promise<unknown>): Promise<void>;
@@ -74,10 +76,35 @@ function probeCacheHandlers() {
   for (const handler of map?.values() ?? []) {
     if (handler.__propelProbe) continue;
     handler.__propelProbe = true;
+    console.log(`[hang-probe] watching the 'use cache' handler (${map?.size ?? 0} kinds)`);
     const get = handler.get.bind(handler);
     const set = handler.set.bind(handler);
-    handler.get = (key, softTags) => track("get", key, get(key, softTags));
+    handler.get = (key, softTags) => {
+      const result = track("get", key, get(key, softTags));
+      // A stale entry starts a background revalidation, which ends in a set() for the key.
+      void result.then(
+        (entry) => {
+          const e = entry as { timestamp?: number; revalidate?: number } | undefined;
+          if (
+            e?.timestamp &&
+            e.revalidate !== undefined &&
+            Date.now() > e.timestamp + e.revalidate * 1000
+          ) {
+            const id = ++cacheCallId;
+            staleKeys.set(key, id);
+            openCacheCalls.set(id, { op: "stale", key: key.slice(0, 300), since: Date.now() });
+          }
+        },
+        () => undefined,
+      );
+      return result;
+    };
     handler.set = (key, pending) => {
+      const stale = staleKeys.get(key);
+      if (stale !== undefined) {
+        staleKeys.delete(key);
+        openCacheCalls.delete(stale);
+      }
       track("entry", key, pending);
       return track("write", key, set(key, pending));
     };
