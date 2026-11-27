@@ -109,10 +109,14 @@ function probeCacheHandlers() {
   probeOpenNextGlobals();
   const map = (globalThis as Record<symbol, unknown>)[Symbol.for("@next/cache-handlers-map")] as
     Map<string, CacheHandler> | undefined;
-  for (const handler of map?.values() ?? []) {
-    if (handler.__propelProbe) continue;
+  for (const handler of map?.values() ?? []) wrapCacheHandler(handler);
+}
+
+function wrapCacheHandler(handler: CacheHandler) {
+  {
+    if (handler.__propelProbe) return;
     handler.__propelProbe = true;
-    console.log(`[hang-probe] watching the 'use cache' handler (${map?.size ?? 0} kinds)`);
+    console.log("[hang-probe] watching a 'use cache' handler");
     const get = handler.get.bind(handler);
     const set = handler.set.bind(handler);
     handler.get = (key, softTags) => {
@@ -160,6 +164,36 @@ function stuckCacheCalls(): string {
     .filter((c) => now - c.since > PROBE_AFTER_MS)
     .map((c) => `${c.op} ${Math.round((now - c.since) / 1000)}s ${c.key}`)
     .join("\n");
+}
+
+/**
+ * Next registers its 'use cache' handlers during the first request of an isolate, and that
+ * request fills the cache: wrap each handler the moment Next adds it to its map.
+ */
+const HANDLERS_MAP = Symbol.for("@next/cache-handlers-map");
+if (!(HANDLERS_MAP in globalThis)) {
+  let current: Map<string, CacheHandler> | undefined;
+  Object.defineProperty(globalThis, HANDLERS_MAP, {
+    configurable: true,
+    get: () => current,
+    set(map: Map<string, CacheHandler>) {
+      const add = map.set.bind(map);
+      map.set = (kind, handler) => {
+        wrapCacheHandler(handler);
+        return add(kind, handler);
+      };
+      current = map;
+    },
+  });
+}
+
+/** Outgoing fetches open over 8 s (Next caches fetch() results through its own wrapper). */
+{
+  const original = globalThis.fetch;
+  globalThis.fetch = (input, init) => {
+    const url = input instanceof Request ? input.url : String(input);
+    return track("get", `fetch ${url.slice(0, 200)}`, original(input, init));
+  };
 }
 
 async function probedFetch(req: Request, env: Env, ctx: Ctx): Promise<Response> {
