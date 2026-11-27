@@ -76,8 +76,8 @@ async function dispatch(id: string, delayMs: number): Promise<void> {
     await runJob(id);
   };
   try {
-    const { after } = await import("next/server");
-    after(run);
+    const { afterResponse } = await import("@/lib/after-response");
+    await afterResponse(run);
   } catch {
     // Outside a request (scripts): run soon, without blocking the caller.
     setTimeout(() => void run().catch((e) => console.error("[jobs] inline run failed:", e)), 0);

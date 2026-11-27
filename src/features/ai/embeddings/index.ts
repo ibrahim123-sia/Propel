@@ -1,12 +1,12 @@
 import "server-only";
 import { and, eq, gte, sql } from "drizzle-orm";
-import { after } from "next/server";
 import { z } from "zod";
 import { getDb, type DbOrTx } from "@/db/client";
 import { currentAgencyId } from "@/db/schema/_common";
 import { embeddingEntityTypes, embeddings, type EmbeddingEntityType } from "@/db/schema/ai";
 import { enqueue } from "@/jobs/enqueue";
 import { defineJob } from "@/jobs/types";
+import { afterResponse } from "@/lib/after-response";
 import { sha256Hex } from "@/lib/crypto";
 import { loadAiConfig } from "../config";
 import { checkAiAvailable } from "../limits";
@@ -200,7 +200,7 @@ export async function queueEmbedding(
 
 /**
  * For the "revalidate after a change" helpers of each content type: queues the embedding
- * update after the response is sent (`after()`), so it never slows an admin save or fails
+ * update after the response is sent (`afterResponse`), so it never slows an admin save or fails
  * it. Outside a request (scripts, tests) it does nothing: the nightly backfill catches up.
  */
 export function embedAfterChange(
@@ -209,15 +209,13 @@ export function embedAfterChange(
 ): void {
   const list = ids.filter((id): id is string => Boolean(id));
   if (list.length === 0) return;
-  try {
-    after(() =>
-      queueEmbedding(type, list).catch((err) =>
-        console.error("[ai] could not queue embeddings:", (err as Error).message),
-      ),
-    );
-  } catch {
+  afterResponse(() =>
+    queueEmbedding(type, list).catch((err) =>
+      console.error("[ai] could not queue embeddings:", (err as Error).message),
+    ),
+  ).catch(() => {
     // Not inside a request: nothing to schedule.
-  }
+  });
 }
 
 export const embedJob = defineJob({

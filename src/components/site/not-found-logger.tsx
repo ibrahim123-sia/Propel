@@ -1,27 +1,24 @@
-import { headers } from "next/headers";
-import { after, connection } from "next/server";
-import { getDb } from "@/db/client";
-import { CRAWLER_AGENT } from "@/features/seo/crawl";
-import { recordNotFound } from "@/features/seo/not-found-log";
+"use client";
+
+import { useEffect } from "react";
+
+/** The address already reported from this page load (Strict Mode runs effects twice). */
+let reported: string | null = null;
 
 /**
- * 404 monitor (08 §6): counts the address after the response is sent. The middleware passes
- * the address in x-propel-path; render inside <Suspense> (it reads the request).
+ * 404 monitor (08 §6): reports the address to /api/not-found once the not-found page is on
+ * screen. Not on the server: Next renders this page into every page's payload (to show it
+ * without a round trip), so a server-side report counted every page, and Next's `after()`
+ * never runs on Cloudflare Workers (it left every request hanging, Error 1101).
  */
-export async function NotFoundLogger() {
-  // Request time only: after() reads the clock, which prerendering must not do.
-  await connection();
-  const h = await headers();
-  const path = h.get("x-propel-path");
-  // The weekly link check reports broken links itself.
-  if (!path || h.get("user-agent") === CRAWLER_AGENT) return null;
-  const referrer = h.get("referer");
-  after(async () => {
-    try {
-      await recordNotFound(await getDb(), path, referrer);
-    } catch (err) {
-      console.error("[404 monitor]", err);
-    }
-  });
+export function NotFoundLogger() {
+  useEffect(() => {
+    const path = `${window.location.pathname}${window.location.search}`.slice(0, 500);
+    if (reported === path) return;
+    reported = path;
+    const body = JSON.stringify({ path, referrer: document.referrer || null });
+    if (!navigator.sendBeacon?.("/api/not-found", body))
+      void fetch("/api/not-found", { method: "POST", body, keepalive: true }).catch(() => {});
+  }, []);
   return null;
 }

@@ -15,6 +15,8 @@ export const rateLimitRules = {
   tool: { limit: 30, windowSeconds: 60 },
   /** Site beacons per (truncated) IP: page views, listing views, clicks. */
   track: { limit: 120, windowSeconds: 60 },
+  /** 404 reports per (truncated) IP (the not-found page's beacon). */
+  notFound: { limit: 30, windowSeconds: 60 },
   login: { limit: 5, windowSeconds: 60 },
   loginFailures: { limit: 5, windowSeconds: 900 },
 } satisfies Record<string, RateLimitRule>;

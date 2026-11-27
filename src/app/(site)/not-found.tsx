@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { NotFoundContent } from "@/components/site/not-found-content";
 import { NotFoundLogger } from "@/components/site/not-found-logger";
 
@@ -7,9 +6,7 @@ export default function SiteNotFound() {
   return (
     <>
       <NotFoundContent />
-      <Suspense fallback={null}>
-        <NotFoundLogger />
-      </Suspense>
+      <NotFoundLogger />
     </>
   );
 }
