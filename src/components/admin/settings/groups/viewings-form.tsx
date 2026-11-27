@@ -144,6 +144,26 @@ export function ViewingsSettingsForm({
             )}
           </FormSection>
 
+          <FormSection title="Google Calendar booking">
+            <TextInputField
+              label="Booking page link"
+              description={
+                <>
+                  In Google Calendar choose Create, then Appointment schedule, set your hours and
+                  save. Open the schedule, choose Share, then Website embed, and paste the link from
+                  the code here (it starts with
+                  https://calendar.google.com/calendar/appointments/schedules/). &quot;Book a
+                  tour&quot; then shows that booking page; leave it empty to use the times above.
+                </>
+              }
+              type="url"
+              placeholder="https://calendar.google.com/calendar/appointments/schedules/…"
+              value={value.googleBookingUrl}
+              onChange={(googleBookingUrl) => set({ googleBookingUrl: googleBookingUrl.trim() })}
+              error={errorFor("googleBookingUrl")}
+            />
+          </FormSection>
+
           <FormSection title="Video viewings">
             <SelectField
               label="Video tool"

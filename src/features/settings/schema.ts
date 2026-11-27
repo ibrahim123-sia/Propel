@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SettingGroup } from "@/db/schema/system";
+import { isGoogleBookingUrl } from "@/features/viewings/google-booking";
 import { httpUrl, phoneSchema, workingHoursSchema } from "@/lib/schemas";
 
 /**
@@ -330,6 +331,22 @@ export const viewingsSchema = z.object({
   holidays: z.array(z.iso.date()).max(60).default([]),
   videoTool: z.enum(["google_meet", "zoom", "whatsapp"]).default("whatsapp"),
   zoomLink: urlOrEmpty,
+  /**
+   * A Google Calendar appointment schedule (its booking page link). When set, "Book a tour"
+   * shows Google's booking page instead of the site's own times (features/viewings/google-booking).
+   */
+  googleBookingUrl: z
+    .union([
+      z.literal(""),
+      z
+        .string()
+        .trim()
+        .refine(
+          isGoogleBookingUrl,
+          "Paste the booking page link of a Google Calendar appointment schedule.",
+        ),
+    ])
+    .default(""),
   reminders: z
     .object({
       customerHoursBefore: z.array(z.number().int().min(1).max(168)).max(3),

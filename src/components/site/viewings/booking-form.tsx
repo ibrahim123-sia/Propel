@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarPlusIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { cn } from "cn";
 import { FormAlert } from "@/components/auth/auth-card";
 import { TextField } from "@/components/auth/text-field";
@@ -24,11 +24,56 @@ const longTime = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
+type BookingPage = { link: string | null; embed: string | null };
+
 /**
- * Book a tour (09 §5): in person or by video, a real free time with the listing's agent, then
- * name, phone and email. The server checks the time again when it books.
+ * Book a tour (09 §5). With a Google Calendar booking page in Settings -> Viewings, that page
+ * (Google's own, with the agency's calendar behind it); otherwise the site's own free times.
  */
-export function BookingForm({
+export function BookingForm(props: { propertyId?: string; projectId?: string; agentName: string }) {
+  const [page, setPage] = useState<BookingPage | null>(null);
+  useEffect(() => {
+    const ctl = new AbortController();
+    const none = { link: null, embed: null };
+    fetch("/api/viewings/booking-page", { signal: ctl.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<BookingPage>) : none))
+      .then(setPage)
+      .catch((e: unknown) => {
+        if ((e as Error).name !== "AbortError") setPage(none);
+      });
+    return () => ctl.abort();
+  }, []);
+  if (!page) return <p className="text-[14px] text-text-muted">{t.booking.loading}</p>;
+  if (page.link) return <GoogleBooking link={page.link} embed={page.embed} />;
+  return <SiteBookingForm {...props} />;
+}
+
+/** Google Calendar's booking page inside the dialog, and a link to open it on Google. */
+function GoogleBooking({ link, embed }: { link: string; embed: string | null }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[14px] text-text">{t.booking.googleIntro}</p>
+      {embed && (
+        <iframe
+          src={embed}
+          title={t.booking.googleTitle}
+          className="h-[min(40rem,68dvh)] w-full rounded-card border border-border bg-surface"
+        />
+      )}
+      <Button asChild variant={embed ? "outline-site" : "default"} size="md">
+        <a href={link} target="_blank" rel="noopener">
+          <CalendarPlusIcon aria-hidden /> {t.booking.googleOpen}
+        </a>
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The site's own booking: in person or by video, a real free time with the listing's agent,
+ * then name, phone and email. The server checks the time again when it books.
+ */
+function SiteBookingForm({
   propertyId,
   projectId,
   agentName,

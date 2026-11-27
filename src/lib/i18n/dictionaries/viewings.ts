@@ -28,6 +28,9 @@ export const viewings = {
     bookedNote: "We've sent the details to your email. {agent} will be with you.",
     addToCalendar: "Add to my calendar",
     addToGoogle: "Add to Google Calendar",
+    googleTitle: "Book a tour on Google Calendar",
+    googleIntro: "Pick a free time on our Google Calendar. Google emails you the invite.",
+    googleOpen: "Open in Google Calendar",
     manage: "Change or cancel",
   },
   manage: {
