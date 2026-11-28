@@ -41,164 +41,14 @@ function internalRequest(path: string, env: Env, body: unknown): Request {
 }
 
 /**
- * TEMPORARY hang probe (2026-11-27): records where each `waitUntil` promise of a request was
- * registered and, 8 s after the response, logs the ones still pending. Workers reports those
- * requests only as "code had hung", with no hint of which promise never settled.
+ * Pages with a watchdog: if no response has come after 10 s, the log names every waitUntil of
+ * the request still open and where it was registered. Workers itself reports such a request
+ * only as "code had hung", with no hint of what never settled; this found the causes of the
+ * Error 1101 outages (Next's after(), the middleware fetching the Worker itself).
  */
-const PROBE_AFTER_MS = 8_000;
+const WATCHDOG_MS = 10_000;
 
-/**
- * 'use cache' calls still open, by call: the cache key and how far it got. Data only (strings
- * and times), never a promise, so it cannot carry a hang from one request to another.
- */
-type CacheCall = { op: "get" | "entry" | "write" | "stale" | "miss"; key: string; since: number };
-const openCacheCalls = new Map<number, CacheCall>();
-let cacheCallId = 0;
-/** Keys read stale (a background revalidation should follow) and their open call id. */
-const staleKeys = new Map<string, number>();
-type CacheHandler = {
-  get(key: string, softTags: string[]): Promise<unknown>;
-  set(key: string, pending: Promise<unknown>): Promise<void>;
-  __propelProbe?: true;
-};
-
-function track<T>(op: CacheCall["op"], key: string, p: Promise<T>): Promise<T> {
-  const id = ++cacheCallId;
-  openCacheCalls.set(id, { op, key: key.slice(0, 300), since: Date.now() });
-  const done = () => openCacheCalls.delete(id);
-  p.then(done, done);
-  return p;
-}
-
-/** Wraps Next's 'use cache' handlers (registered on globalThis by Next) once they exist. */
-/** OpenNext's own cache layers (R2 page cache, tag cache, revalidation queue). */
-function probeOpenNextGlobals() {
-  const g = globalThis as Record<string, unknown>;
-  for (const name of ["incrementalCache", "tagCache", "queue", "cdnInvalidationHandler"]) {
-    const target = g[name] as (Record<string, unknown> & { __propelProbe?: true }) | undefined;
-    if (!target || target.__propelProbe) continue;
-    target.__propelProbe = true;
-    const known = [
-      "get",
-      "set",
-      "delete",
-      "getByPath",
-      "getByTag",
-      "getLastModified",
-      "getLastRevalidated",
-      "getPathsByTags",
-      "hasBeenRevalidated",
-      "isStale",
-      "writeTags",
-      "send",
-      "invalidatePaths",
-    ];
-    for (const method of new Set([...Object.keys(target), ...known])) {
-      const fn = target[method];
-      if (typeof fn !== "function") continue;
-      target[method] = (...args: unknown[]) => {
-        const out = (fn as (...a: unknown[]) => unknown).apply(target, args);
-        if (out instanceof Promise)
-          void track("get", `${name}.${method} ${String(args[0]).slice(0, 200)}`, out);
-        return out;
-      };
-    }
-  }
-}
-
-function probeCacheHandlers() {
-  probeOpenNextGlobals();
-  const map = (globalThis as Record<symbol, unknown>)[Symbol.for("@next/cache-handlers-map")] as
-    Map<string, CacheHandler> | undefined;
-  for (const handler of map?.values() ?? []) wrapCacheHandler(handler);
-}
-
-function wrapCacheHandler(handler: CacheHandler) {
-  {
-    if (handler.__propelProbe) return;
-    handler.__propelProbe = true;
-    console.log("[hang-probe] watching a 'use cache' handler");
-    const get = handler.get.bind(handler);
-    const set = handler.set.bind(handler);
-    handler.get = (key, softTags) => {
-      const result = track("get", key, get(key, softTags));
-      // A stale entry starts a background revalidation, which ends in a set() for the key.
-      void result.then(
-        (entry) => {
-          const e = entry as { timestamp?: number; revalidate?: number } | undefined;
-          // A miss (no entry) or a stale entry is filled, then written with set(); the set
-          // only comes once the entry's whole stream is collected.
-          const miss = !e;
-          const stale =
-            !!e?.timestamp &&
-            e.revalidate !== undefined &&
-            Date.now() > e.timestamp + e.revalidate * 1000;
-          if (miss || stale) {
-            const id = ++cacheCallId;
-            staleKeys.set(key, id);
-            openCacheCalls.set(id, {
-              op: miss ? "miss" : "stale",
-              key: key.slice(0, 300),
-              since: Date.now(),
-            });
-          }
-        },
-        () => undefined,
-      );
-      return result;
-    };
-    handler.set = (key, pending) => {
-      const stale = staleKeys.get(key);
-      if (stale !== undefined) {
-        staleKeys.delete(key);
-        openCacheCalls.delete(stale);
-      }
-      track("entry", key, pending);
-      return track("write", key, set(key, pending));
-    };
-  }
-}
-
-function stuckCacheCalls(): string {
-  const now = Date.now();
-  return [...openCacheCalls.values()]
-    .filter((c) => now - c.since > PROBE_AFTER_MS)
-    .map((c) => `${c.op} ${Math.round((now - c.since) / 1000)}s ${c.key}`)
-    .join("\n");
-}
-
-/**
- * Next registers its 'use cache' handlers during the first request of an isolate, and that
- * request fills the cache: wrap each handler the moment Next adds it to its map.
- */
-const HANDLERS_MAP = Symbol.for("@next/cache-handlers-map");
-if (!(HANDLERS_MAP in globalThis)) {
-  let current: Map<string, CacheHandler> | undefined;
-  Object.defineProperty(globalThis, HANDLERS_MAP, {
-    configurable: true,
-    get: () => current,
-    set(map: Map<string, CacheHandler>) {
-      const add = map.set.bind(map);
-      map.set = (kind, handler) => {
-        wrapCacheHandler(handler);
-        return add(kind, handler);
-      };
-      current = map;
-    },
-  });
-}
-
-/** Outgoing fetches open over 8 s (Next caches fetch() results through its own wrapper). */
-{
-  const original = globalThis.fetch;
-  globalThis.fetch = (input, init) => {
-    const url = input instanceof Request ? input.url : String(input);
-    return track("get", `fetch ${url.slice(0, 200)}`, original(input, init));
-  };
-}
-
-async function probedFetch(req: Request, env: Env, ctx: Ctx): Promise<Response> {
-  probeCacheHandlers();
+async function serve(req: Request, env: Env, ctx: Ctx): Promise<Response> {
   const pending = new Map<number, string>();
   let next = 0;
   const waitUntil = (p: Promise<unknown>) => {
@@ -207,29 +57,22 @@ async function probedFetch(req: Request, env: Env, ctx: Ctx): Promise<Response> 
     Error.stackTraceLimit = 40;
     pending.set(id, new Error("waitUntil").stack ?? "");
     Error.stackTraceLimit = limit;
-    p.then(
-      () => pending.delete(id),
-      () => pending.delete(id),
-    );
+    const done = () => pending.delete(id);
+    p.then(done, done);
     ctx.waitUntil(p);
   };
-  const probeCtx = new Proxy(ctx, {
+  const watchedCtx = new Proxy(ctx, {
     get(target, key) {
       if (key === "waitUntil") return waitUntil;
       const value = Reflect.get(target, key) as unknown;
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
-  const path = `${req.method} ${new URL(req.url).pathname}`;
-  const report = (when: string) => {
-    probeCacheHandlers();
-    const stuck = stuckCacheCalls();
-    if (pending.size || stuck)
-      console.error(
-        `[hang-probe] ${path} ${when}: ${pending.size} pending\n${[...pending.values()].join("\n---\n")}\n[use cache open > 8 s]\n${stuck}`,
-      );
-  };
-  const slow = setTimeout(() => report("no response after 10 s"), 10_000);
+  const watchdog = setTimeout(() => {
+    console.error(
+      `[watchdog] ${req.method} ${new URL(req.url).pathname}: no response after 10 s; ${pending.size} waitUntil open\n${[...pending.values()].join("\n---\n")}`,
+    );
+  }, WATCHDOG_MS);
   try {
     const moved = await workerRedirect(
       req,
@@ -237,19 +80,14 @@ async function probedFetch(req: Request, env: Env, ctx: Ctx): Promise<Response> 
       ctx,
     );
     if (moved) return moved;
-    return await app.fetch(req, env, probeCtx);
+    return await app.fetch(req, env, watchedCtx);
   } finally {
-    clearTimeout(slow);
-    ctx.waitUntil(
-      new Promise((r) => setTimeout(r, PROBE_AFTER_MS)).then(() =>
-        report("8 s after the response"),
-      ),
-    );
+    clearTimeout(watchdog);
   }
 }
 
 const worker = {
-  fetch: probedFetch,
+  fetch: serve,
 
   /** One cron (`* * * * *`); the app decides what is due in the agency time zone. */
   async scheduled(event: Scheduled, env: Env, ctx: Ctx) {
