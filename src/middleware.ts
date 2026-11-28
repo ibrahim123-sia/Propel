@@ -17,6 +17,9 @@ import { CURRENCY_COOKIE, LEGACY_CURRENCY_COOKIE } from "@/features/site/currenc
 import { REQUEST_ID_HEADER } from "@/lib/log";
 import { pageCsp } from "@/lib/security/headers";
 
+const onWorkers = () =>
+  typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+
 /**
  * Edge middleware: small and Edge-safe on purpose (OpenNext does not run Node middleware).
  * - Optimistic redirect to sign-in when there is no session cookie at all. This is only a
@@ -93,7 +96,14 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     }
   }
 
-  if (!isAdmin && !isAccount && (request.method === "GET" || request.method === "HEAD")) {
+  // On Cloudflare the Worker answers redirects before Next.js runs (src/worker/edge-redirects.ts):
+  // a request from the Worker to itself here hung fresh isolates (Error 1101).
+  if (
+    !isAdmin &&
+    !isAccount &&
+    !onWorkers() &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
     const moved = await edgeRedirect(request.nextUrl, (p) => event.waitUntil(p));
     if (moved) return NextResponse.redirect(moved.location, moved.status);
   }
